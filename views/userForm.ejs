@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title><%= title || (isEdit ? 'Edit User' : 'Create User') %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Bootstrap + app.css -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/app.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-page">
+  <!-- Top admin navbar -->
+  <%- include('partials/admin-modern-navbar', { user: user, active: 'users' }) %>
+
+  <main class="app-main">
+    <div class="container">
+      <!-- Page header -->
+      <!-- Header block -->
+      <div class="d-flex justify-content-center align-items-start position-relative mb-4">
+
+        <!-- Centered title + subtitle -->
+        <div class="text-center">
+          <h2 class="mb-1"><%= isEdit ? 'Edit User' : 'Create User' %></h2>
+          <p class="text-muted mb-0">
+            Manage supermarket admin and customer accounts.
+          </p>
+        </div>
+
+        <!-- Button aligned to top-right -->
+        <a href="/admin/users"
+          class="btn btn-outline-secondary btn-sm position-absolute"
+          style="right: 0; top: 0;">
+          ← Back to Users
+        </a>
+
+      </div>
+
+      </div>
+
+      <!-- Flash messages -->
+      <% if (error && error.length) { %>
+        <div class="alert alert-danger"><%= error[0] %></div>
+      <% } %>
+      <% if (success && success.length) { %>
+        <div class="alert alert-success"><%= success[0] %></div>
+      <% } %>
+
+      <!-- Main card -->
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title mb-3">
+                <%= isEdit ? 'User Details' : 'New User Details' %>
+              </h5>
+              <p class="text-muted small mb-4">
+                Fill in the user profile information and login settings. Fields marked with
+                <span class="text-danger">*</span> are required.
+              </p>
+
+              <form method="POST"
+                    action="<%= isEdit ? ('/admin/users/' + formUser.id + '/edit') : '/admin/users/new' %>">
+
+                <div class="row g-3">
+                  <!-- LEFT COLUMN: basic info -->
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label class="form-label">
+                        Username <span class="text-danger">*</span>
+                      </label>
+                      <input class="form-control"
+                             name="username"
+                             value="<%= formUser.username || '' %>"
+                             required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label" for="email">
+                        Email <span class="text-danger">*</span>
+                      </label>
+                      <input id="email"
+                             name="email"
+                             type="email"
+                             class="form-control"
+                             value="<%= formUser.email || '' %>"
+                             required>
+                      <div id="emailHelp" class="form-text"></div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label">
+                        Contact Number <span class="text-danger">*</span>
+                      </label>
+                      <input class="form-control"
+                             name="contact"
+                             value="<%= formUser.contact || '' %>"
+                             required>
+                    </div>
+                  </div>
+
+                  <!-- RIGHT COLUMN: role + security -->
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label class="form-label">
+                        Role <span class="text-danger">*</span>
+                      </label>
+                      <select class="form-select" name="role">
+                        <option value="user" <%= formUser.role === 'user' ? 'selected' : '' %>>
+                          User
+                        </option>
+                        <option value="admin" <%= formUser.role === 'admin' ? 'selected' : '' %>>
+                          Admin
+                        </option>
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label">
+                        Password
+                        <% if (isEdit) { %>
+                          <span class="text-muted small">(leave blank to keep existing)</span>
+                        <% } else { %>
+                          <span class="text-danger">*</span>
+                        <% } %>
+                      </label>
+                      <input type="password"
+                             class="form-control"
+                             name="password"
+                             <%= isEdit ? '' : 'required' %>>
+                    </div>
+
+                    <!-- OTP / 2FA toggle block -->
+                    <div class="border rounded p-3 bg-light">
+                      <label class="form-label d-block mb-2">Two-Factor Authentication</label>
+
+                      <!-- ensure a value is always posted for otp_enabled -->
+                      <input type="hidden" name="otp_enabled" value="0" />
+
+                      <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="otpEnabled"
+                               name="otp_enabled"
+                               value="1"
+                               <%= (formUser && formUser.otp_enabled) ? 'checked' : '' %> />
+                        <label class="form-check-label" for="otpEnabled">
+                          Enable 2FA (Google Authenticator)
+                        </label>
+                      </div>
+                      <div class="form-text">
+                        When enabled, this user must enter a one-time password from
+                        Google Authenticator during login.
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- FULL WIDTH: address -->
+                  <div class="col-12">
+                    <div class="mb-3">
+                      <label class="form-label">
+                        Address <span class="text-danger">*</span>
+                      </label>
+                      <input class="form-control"
+                             name="address"
+                             value="<%= formUser.address || '' %>"
+                             required>
+                    </div>
+                  </div>
+
+                  <!-- ACTION BUTTONS -->
+                  <div class="col-12">
+                    <div class="d-grid d-md-flex gap-2 justify-content-md-end">
+                      <a href="/admin/users" class="btn btn-outline-secondary">
+                        Cancel
+                      </a>
+                      <button type="submit" class="btn btn-primary">
+                        <%= isEdit ? 'Save Changes' : 'Create User' %>
+                      </button>
+                    </div>
+                  </div>
+                </div> <!-- /.row -->
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div> <!-- /.container -->
+  </main>
+
+  <!-- Email live-check script (kept same as your original logic) -->
+  <script>
+    const emailInput = document.getElementById('email');
+    const emailHelp = document.getElementById('emailHelp');
+
+    async function checkEmailExists(value) {
+      const res = await fetch(`/admin/users/check-email?email=${encodeURIComponent(value)}`, {
+        credentials: 'same-origin'
+      });
+      const data = await res.json();
+      return data.ok && data.exists;
+    }
+
+    if (emailInput) {
+      emailInput.addEventListener('blur', async () => {
+        const val = emailInput.value.trim();
+        if (!val) return;
+        try {
+          const exists = await checkEmailExists(val);
+          if (exists) {
+            emailHelp.textContent = 'This email is already in use. Please use another email.';
+            emailHelp.className = 'form-text text-danger';
+            alert('This email is already in use. Please use another email.');
+          } else {
+            emailHelp.textContent = 'Email is available.';
+            emailHelp.className = 'form-text text-success';
+          }
+        } catch (_) {
+          // ignore errors silently
+        }
+      });
+    }
+  </script>
+</body>
+</html>

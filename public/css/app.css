@@ -1,0 +1,158 @@
+/* public/css/app.css */
+
+/* Brand palette – tweak as you like */
+:root {
+  --brand-primary: #00509d;     /* deep blue */
+  --brand-secondary: #00a8e8;   /* bright cyan */
+  --brand-accent: #ff8a00;      /* orange for status / promos */
+  --brand-muted: #f5f7fb;       /* light background */
+  --brand-border: #e1e5ee;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: var(--brand-muted);
+}
+
+/* General layout */
+.bg-page {
+  background: radial-gradient(circle at top left, #e9f3ff 0, #f5f7fb 40%, #ffffff 100%);
+}
+
+.app-main {
+  padding-top: 1rem;
+  padding-bottom: 2rem;
+}
+
+/* Navbar */
+.navbar.app-navbar {
+  background: linear-gradient(90deg, var(--brand-primary), #00336a);
+}
+
+.navbar.app-navbar .navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.navbar.app-navbar .nav-link {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.navbar.app-navbar .nav-link.active {
+  border-bottom: 2px solid var(--brand-secondary);
+}
+
+/* Hero section on home page */
+.hero-card {
+  border-radius: 1.25rem;
+  padding: 2.5rem 2rem;
+  background: linear-gradient(135deg, #004b88, #007adf);
+  color: #fff;
+}
+
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Generic cards */
+.card {
+  border-radius: 1rem;
+  border: 1px solid var(--brand-border);
+}
+
+.card-header {
+  border-bottom-color: var(--brand-border);
+}
+
+/* Product cards (shopping page) */
+.card-product {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.card-product:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.card-product .card-img-top {
+  height: 150px;
+  object-fit: contain;
+  padding: 0.75rem;
+}
+
+.card-product .price-tag {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--brand-primary);
+}
+
+.stock-pill {
+  font-size: 0.75rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.btn-primary:hover {
+  background-color: #003b80;
+  border-color: #003674;
+}
+
+.btn-outline-primary {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--brand-primary);
+  color: #fff;
+}
+
+/* Tables */
+.table-modern thead {
+  background-color: #eef3ff;
+}
+
+.table-modern thead th {
+  border-bottom-width: 0;
+}
+
+.table-modern tbody tr:hover {
+  background-color: #f8fbff;
+}
+
+/* Form cards (login/register/OTP/feedback) */
+.form-card {
+  max-width: 520px;
+  margin: 2.5rem auto;
+}
+
+/* Status badges */
+.badge-status-paid {
+  background-color: #16a34a; /* green */
+}
+
+.badge-status-pending {
+  background-color: #f97316; /* orange */
+}
+
+.badge-status-cancelled {
+  background-color: #dc2626; /* red */
+}
+
+/* Small helper text */
+.text-muted-xs {
+  font-size: 0.8rem;
+}

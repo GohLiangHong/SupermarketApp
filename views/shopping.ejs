@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shop Products</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/app.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-page">
+  <%- include('partials/navbar', { active: 'shop', user }) %>
+
+  <main class="app-main">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+          <h2 class="mb-0">Shop Groceries</h2>
+          <p class="text-muted mb-0">Welcome, <strong><%= user.username %></strong> (<%= user.role %>)</p>
+        </div>
+        <a href="/cart" class="btn btn-outline-primary">
+          View Cart
+        </a>
+      </div>
+
+      <!-- FILTER BAR -->
+      <div class="card mb-3 shadow-sm">
+        <div class="card-body">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-6">
+              <label class="form-label mb-1">Search product</label>
+              <input id="productSearch" type="text" class="form-control" placeholder="Search by name...">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label mb-1">Sort by</label>
+              <select id="productSort" class="form-select">
+                <option value="name-asc">Name A–Z</option>
+                <option value="name-desc">Name Z–A</option>
+                <option value="price-asc">Price (low → high)</option>
+                <option value="price-desc">Price (high → low)</option>
+                <option value="qty-asc">Stock (low → high)</option>
+                <option value="qty-desc">Stock (high → low)</option>
+              </select>
+            </div>
+            <div class="col-md-3 text-md-end">
+              <small class="text-muted-xs d-block">
+                Products available: <strong><%= products.length %></strong>
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUCT GRID -->
+      <div id="productGrid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+        <% for (let i = 0; i < products.length; i++) { %>
+          <div class="col">
+            <div class="card card-product h-100 product-card"
+                 data-name="<%= products[i].productName.toLowerCase() %>"
+                 data-price="<%= products[i].price %>"
+                 data-qty="<%= products[i].quantity %>">
+
+              <a href="/product/<%= products[i].id %>">
+                <img src="/images/<%= products[i].image %>"
+                     class="card-img-top"
+                     alt="<%= products[i].productName %>">
+              </a>
+
+              <div class="card-body d-flex flex-column">
+                <h6 class="card-title mb-1 text-truncate">
+                  <a href="/product/<%= products[i].id %>" class="text-decoration-none text-dark">
+                    <%= products[i].productName %>
+                  </a>
+                </h6>
+
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="price-tag">
+                    $<%= products[i].price.toFixed(2) %>
+                  </span>
+                  <span class="badge bg-light text-dark stock-pill">
+                    Stock: <%= products[i].quantity %>
+                  </span>
+                </div>
+
+                <form action="/add-to-cart/<%= products[i].id %>" method="POST" class="mt-auto">
+                  <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text">Qty</span>
+                    <input type="number"
+                           name="quantity"
+                           min="1"
+                           max="<%= products[i].quantity %>"
+                           value="1"
+                           class="form-control text-center">
+                  </div>
+                  <button type="submit" class="btn btn-primary w-100">
+                    Add to cart
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
+
+      <% if (user) { %>
+        <div class="mt-4 text-center">
+          <a href="/otp/reprovision" class="text-muted text-decoration-none text-sm">
+            Manage / re-scan your 2FA QR
+          </a>
+        </div>
+      <% } %>
+    </div>
+  </main>
+
+  <!-- JS: filter + sort for cards -->
+  <script>
+    (function () {
+      const searchInput = document.getElementById('productSearch');
+      const sortSelect  = document.getElementById('productSort');
+      const grid        = document.getElementById('productGrid');
+      if (!grid) return;
+
+      const cards = Array.from(grid.querySelectorAll('.product-card'));
+
+      function applyFilter() {
+        const term = (searchInput?.value || '').toLowerCase();
+        cards.forEach(card => {
+          const name = card.dataset.name || '';
+          card.style.display = !term || name.includes(term) ? '' : 'none';
+        });
+      }
+
+      function applySort() {
+        const value = sortSelect?.value;
+        if (!value) return;
+
+        const [field, direction] = value.split('-');
+        const sorted = [...cards].sort((a, b) => {
+          let aVal, bVal;
+          if (field === 'name') {
+            aVal = a.dataset.name || '';
+            bVal = b.dataset.name || '';
+            if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+            return 0;
+          } else if (field === 'price') {
+            aVal = parseFloat(a.dataset.price || '0');
+            bVal = parseFloat(b.dataset.price || '0');
+          } else {
+            aVal = parseInt(a.dataset.qty || '0', 10);
+            bVal = parseInt(b.dataset.qty || '0', 10);
+          }
+          return direction === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+
+        sorted.forEach(card => grid.appendChild(card.parentElement)); // parent is .col
+      }
+
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          applyFilter();
+        });
+      }
+
+      if (sortSelect) {
+        sortSelect.addEventListener('change', () => {
+          applySort();
+          applyFilter();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

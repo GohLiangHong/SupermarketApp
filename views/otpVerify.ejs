@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Enter OTP</title>
+</head>
+<body>
+  <h1>Enter OTP</h1>
+
+  <% if (qrData) { %>
+    <h3>Scan this QR with your authenticator app</h3>
+    <img src="<%= qrData %>" alt="OTP QR Code" style="width:220px;height:220px;" />
+    <% if (secretBase32) { %>
+      <p>Manual secret: <strong><%= secretBase32 %></strong></p>
+    <% } %>
+    <p>After scanning, enter the 6-digit code below to complete login.</p>
+  <% } %>
+
+  <form method="POST" action="/otp/verify">
+    <label>Enter the 6-digit code from your authenticator app:</label><br/>
+    <input type="text" name="token" maxlength="6" required />
+    <button type="submit">Verify</button>
+  </form>
+
+  <% if (error && error.length) { %>
+    <div style="color:red;"><%= error %></div>
+  <% } %>
+</body>
+</html>

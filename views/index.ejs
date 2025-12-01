@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Supermarket App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/app.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-page">
+  <%- include('partials/navbar', { active: user ? (user.role === 'admin' ? 'inventory' : 'shop') : 'home', user }) %>
+
+  <main class="app-main">
+    <div class="container">
+      <!-- HERO -->
+      <div class="hero-card mb-4">
+        <div class="row align-items-center gy-3">
+          <div class="col-md-7">
+            <div class="hero-pill mb-2">
+              <span class="badge bg-light text-dark">NEW</span>
+              <span>Fresh groceries, smart payments</span>
+            </div>
+            <h1 class="fw-bold mb-2">Your smart way to shop for daily essentials.</h1>
+            <p class="mb-4">
+              Browse fresh produce, track your orders in real-time, and enjoy a seamless checkout
+              experience – all in one modern supermarket app.
+            </p>
+
+            <% if (!user) { %>
+              <div class="d-flex flex-wrap gap-2">
+                <a href="/login" class="btn btn-light fw-semibold">
+                  Login to start shopping
+                </a>
+                <a href="/register" class="btn btn-outline-light">
+                  Create an account
+                </a>
+              </div>
+            <% } else if (user.role === 'admin') { %>
+              <div class="d-flex flex-wrap gap-2">
+                <a href="/inventory" class="btn btn-light fw-semibold">Manage Inventory</a>
+                <a href="/admin/users" class="btn btn-outline-light">Manage Users</a>
+                <a href="/admin/feedback" class="btn btn-outline-light">View Feedback</a>
+              </div>
+            <% } else { %>
+              <div class="d-flex flex-wrap gap-2">
+                <a href="/shopping" class="btn btn-light fw-semibold">Start Shopping</a>
+                <a href="/cart" class="btn btn-outline-light">View Cart</a>
+                <a href="/my-orders" class="btn btn-outline-light">My Orders</a>
+              </div>
+            <% } %>
+          </div>
+
+          <div class="col-md-5 text-md-end text-center">
+            <img src="/images/apples.png" alt="Groceries"
+                 class="img-fluid" style="max-height: 260px; object-fit: contain;">
+          </div>
+        </div>
+      </div>
+
+      <!-- FEATURE CARDS -->
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">Fresh Produce</h5>
+              <p class="card-text text-muted">
+                Apples, bananas, dairy, and more with up-to-date stock levels from your database.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">Smart Cart & Orders</h5>
+              <p class="card-text text-muted">
+                Add items to your cart, update quantities, and review your order history in one place.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">Secure Login & 2FA</h5>
+              <p class="card-text text-muted">
+                Optional OTP / 2FA support keeps your supermarket account protected.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+<body>
+  <h2>OTP Setup</h2>
+  <% if (error && error.length) { %><p style="color:red"><%= error %></p><% } %>
+  <% if (success && success.length) { %><p style="color:green"><%= success %></p><% } %>
+  <p>Scan this QR with Google Authenticator / Authy:</p>
+  <img src="<%= qrData %>" alt="OTP QR" />
+  <form method="POST" action="/otp/setup">
+    <input type="hidden" name="secretBase32" value="<%= secretBase32 %>"/>
+    <label><input type="checkbox" name="enable" /> Enable OTP for my account</label>
+    <button type="submit">Save</button>
+  </form>
+  <a href="/shopping">Back</a>
+</body>
+</html>

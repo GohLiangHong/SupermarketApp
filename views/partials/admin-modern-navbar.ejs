@@ -1,0 +1,57 @@
+<nav class="navbar navbar-expand-sm navbar-dark app-navbar shadow-sm mb-3">
+  <div class="container-fluid">
+    <!-- Brand -->
+    <a class="navbar-brand fw-bold" href="/inventory">
+      Supermarket Admin
+    </a>
+
+    <!-- Toggler -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar"
+            aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Links -->
+    <div class="collapse navbar-collapse" id="adminNavbar">
+      <ul class="navbar-nav me-auto mb-2 mb-sm-0">
+
+        <!-- Inventory -->
+        <li class="nav-item">
+          <a class="nav-link <%= active === 'inventory' ? 'active' : '' %>" href="/inventory">
+            Inventory
+          </a>
+        </li>
+
+        <!-- Add Product -->
+        <li class="nav-item">
+          <a class="nav-link <%= active === 'addProduct' ? 'active' : '' %>" href="/addProduct">
+            Add Product
+          </a>
+        </li>
+
+        <!-- Manage Users -->
+        <li class="nav-item">
+          <a class="nav-link <%= active === 'users' ? 'active' : '' %>" href="/admin/users">
+            Users
+          </a>
+        </li>
+
+        <!-- Admin Feedback -->
+        <li class="nav-item">
+          <a class="nav-link <%= active === 'feedback' ? 'active' : '' %>" href="/admin/feedback">
+            Feedback
+          </a>
+        </li>
+
+      </ul>
+
+      <% if (user) { %>
+        <span class="navbar-text me-3 small">
+          Admin: <strong><%= user.username %></strong>
+          <span class="badge bg-danger text-uppercase ms-1">Admin</span>
+        </span>
+        <a class="btn btn-outline-light btn-sm" href="/logout">Logout</a>
+      <% } %>
+    </div>
+  </div>
+</nav>

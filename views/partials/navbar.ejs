@@ -1,0 +1,63 @@
+<nav class="navbar navbar-expand-sm navbar-dark shadow-sm mb-3 app-navbar">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" href="/">Supermarket App</a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav me-auto mb-2 mb-sm-0">
+        <% if (!user) { %>
+          <!-- Guest: show Register + Login -->
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'register' ? 'active' : '' %>" href="/register">Register</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'login' ? 'active' : '' %>" href="/login">Login</a>
+          </li>
+
+        <% } else if (user.role === 'admin') { %>
+          <!-- Admin: inventory + product + users + feedback -->
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'inventory' ? 'active' : '' %>" href="/inventory">Inventory</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'addProduct' ? 'active' : '' %>" href="/addProduct">Add Product</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'users' ? 'active' : '' %>" href="/admin/users">Users</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'feedback' ? 'active' : '' %>" href="/admin/feedback">Feedback</a>
+          </li>
+
+        <% } else { %>
+          <!-- Normal user: shopping flow -->
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'shop' ? 'active' : '' %>" href="/shopping">Shop</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'cart' ? 'active' : '' %>" href="/cart">View Cart</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'orders' ? 'active' : '' %>" href="/my-orders">My Orders</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= active === 'feedback' ? 'active' : '' %>" href="/feedback">Feedback</a>
+          </li>
+        <% } %>
+      </ul>
+
+      <% if (user) { %>
+        <span class="navbar-text me-3 small text-white-50">
+          Signed in as <strong><%= user.username %></strong>
+          <span class="badge <%= user.role === 'admin' ? 'bg-danger' : 'bg-success' %> ms-1 text-uppercase">
+            <%= user.role %>
+          </span>
+        </span>
+        <a class="btn btn-outline-light btn-sm" href="/logout">Logout</a>
+      <% } %>
+    </div>
+  </div>
+</nav>
