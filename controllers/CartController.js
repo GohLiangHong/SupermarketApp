@@ -15,8 +15,7 @@ function addToCart(req, res) {
 
   const userId = user.id;
   const productId = parseInt(req.params.id, 10);
-  const quantity = parseInt(req.body.quantity || '1', 10);
-
+  let quantity = parseInt(req.body.quantity || '1', 10);
   if (Number.isNaN(productId)) {
     req.flash('error', 'Invalid product.');
     return res.redirect('/shopping');
@@ -26,7 +25,7 @@ function addToCart(req, res) {
     return res.redirect('/shopping');
   }
 
-  // Re-check product exists before adding
+  // Get product stock
   ProductModel.getById(productId, (err, product) => {
     if (err) {
       console.error(err);
@@ -38,15 +37,52 @@ function addToCart(req, res) {
       return res.redirect('/shopping');
     }
 
-    CartModel.addOrUpdateItem(userId, productId, quantity, (err2) => {
+    const stock = Number(product.quantity) || 0;
+
+    // If user tries to add more than total stock in one shot
+    if (quantity > stock) {
+      req.flash(
+        'error',
+        `Only ${stock} unit(s) available. You cannot add more than the stock quantity.`
+      );
+      return res.redirect('/shopping');
+    }
+
+    // Check how many of this product are already in the cart
+    CartModel.getCartByUser(userId, (err2, items) => {
       if (err2) {
         console.error(err2);
-        req.flash('error', 'Could not update cart.');
+        req.flash('error', 'Error checking your cart.');
         return res.redirect('/shopping');
       }
 
-      req.flash('success', 'Item added to cart.');
-      return res.redirect('/cart');
+      const existingItem = Array.isArray(items)
+        ? items.find(it => Number(it.productId) === Number(productId))
+        : null;
+
+      const existingQty = existingItem ? Number(existingItem.cart_quantity || existingItem.quantity || 0) : 0;
+      const totalRequested = existingQty + quantity;
+
+      // BLOCK if total in cart would exceed stock
+      if (totalRequested > stock) {
+        req.flash(
+          'error',
+          `You already have ${existingQty} in your cart. Only ${stock} unit(s) are in stock, so you cannot add more.`
+        );
+        return res.redirect('/shopping');
+      }
+
+      // Safe to add/update cart
+      CartModel.addOrUpdateItem(userId, productId, quantity, (err3) => {
+        if (err3) {
+          console.error(err3);
+          req.flash('error', 'Could not update cart.');
+          return res.redirect('/shopping');
+        }
+
+        req.flash('success', 'Item added to cart.');
+        return res.redirect('/cart');
+      });
     });
   });
 }
@@ -77,6 +113,7 @@ function viewCart(req, res) {
 }
 
 // POST /cart/update/:id
+// POST /cart/update/:id
 function updateItem(req, res) {
   const user = req.session.user;
   if (!user) {
@@ -92,8 +129,8 @@ function updateItem(req, res) {
     return res.redirect('/cart');
   }
 
+  // If quantity invalid or <= 0, treat as remove (your original behaviour)
   if (Number.isNaN(quantity) || quantity <= 0) {
-    // treat as remove
     return CartModel.removeItem(userId, productId, (err) => {
       if (err) {
         console.error(err);
@@ -105,15 +142,39 @@ function updateItem(req, res) {
     });
   }
 
-  CartModel.updateItem(userId, productId, quantity, (err) => {
+  // 🔍 Check stock before updating quantity
+  ProductModel.getById(productId, (err, product) => {
     if (err) {
       console.error(err);
-      req.flash('error', 'Could not update cart quantity.');
+      req.flash('error', 'Error updating cart.');
+      return res.redirect('/cart');
+    }
+    if (!product) {
+      req.flash('error', 'Product not found.');
       return res.redirect('/cart');
     }
 
-    req.flash('success', 'Cart updated.');
-    return res.redirect('/cart');
+    const stock = Number(product.quantity) || 0;
+
+    if (quantity > stock) {
+      req.flash(
+        'error',
+        `You cannot set quantity to ${quantity}. Only ${stock} unit(s) are in stock.`
+      );
+      return res.redirect('/cart');
+    }
+
+    // ✅ Safe to update quantity
+    CartModel.updateItem(userId, productId, quantity, (err2) => {
+      if (err2) {
+        console.error(err2);
+        req.flash('error', 'Could not update cart quantity.');
+        return res.redirect('/cart');
+      }
+
+      req.flash('success', 'Cart updated.');
+      return res.redirect('/cart');
+    });
   });
 }
 
@@ -190,8 +251,8 @@ function checkout(req, res) {
 
     // 3) Validate stock
     for (const item of itemsToCheckout) {
-      const qty = Number(item.quantity);
-      const stock = Number(item.stock);
+      const qty = Number(item.cart_quantity || item.quantity || 0);
+      const stock = Number(item.stock || 0);
       if (qty > stock) {
         req.flash(
           'error',
@@ -204,7 +265,8 @@ function checkout(req, res) {
     // 4) Compute totals
     let subtotal = 0;
     itemsToCheckout.forEach(item => {
-      subtotal += Number(item.price) * Number(item.quantity);
+      const qty = Number(item.cart_quantity || item.quantity || 0);
+      subtotal += Number(item.price || 0) * qty;
     });
     subtotal = Number(subtotal.toFixed(2));
 
@@ -245,7 +307,8 @@ function checkout(req, res) {
           }
 
           const item = itemsToCheckout[index];
-          const newQty = Number(item.stock) - Number(item.quantity);
+          const itemQty = Number(item.cart_quantity || item.quantity || 0);
+          const newQty = Number(item.stock || 0) - itemQty;
           const sql = 'UPDATE products SET quantity = ? WHERE id = ?';
 
           db.query(

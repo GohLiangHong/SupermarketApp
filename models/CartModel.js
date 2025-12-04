@@ -7,7 +7,7 @@ function getCartByUser(userId, callback) {
     SELECT 
       ci.cart_id,
       ci.product_id AS productId,
-      ci.quantity,
+      ci.quantity AS cart_quantity,
       p.productName,
       p.price,
       p.image,
@@ -19,14 +19,23 @@ function getCartByUser(userId, callback) {
   `;
   db.query(sql, [userId], (err, results) => {
     if (err) return callback(err);
-    callback(null, results);
+    // convert numeric-like strings to numbers for convenience in views/controllers
+    const mapped = results.map(r => ({
+      ...r,
+      // ensure both names exist: cart_quantity (DB alias) and quantity (common usage elsewhere)
+      cart_quantity: Number(r.cart_quantity) || 0,
+      quantity: Number(r.cart_quantity) || 0,
+      price: Number(r.price) || 0,
+      stock: Number(r.stock) || 0
+    }));
+    callback(null, mapped);
   });
 }
 
 // Add new item or increase quantity if already in cart
 function addOrUpdateItem(userId, productId, quantity, callback) {
   const selectSql = `
-    SELECT cart_id, quantity
+    SELECT cart_id, quantity AS cart_quantity
     FROM cart_item
     WHERE user_id = ? AND product_id = ?
   `;
@@ -34,10 +43,11 @@ function addOrUpdateItem(userId, productId, quantity, callback) {
     if (err) return callback(err);
 
     const now = new Date();
+    const qty = Number(quantity) || 0;
 
     if (rows.length > 0) {
-      const existingQty = Number(rows[0].quantity) || 0;
-      const newQty = existingQty + Number(quantity);
+      const existingQty = Number(rows[0].cart_quantity) || 0;
+      const newQty = existingQty + qty;
       const updateSql = `
         UPDATE cart_item
         SET quantity = ?, updated_at = ?
@@ -50,19 +60,20 @@ function addOrUpdateItem(userId, productId, quantity, callback) {
       INSERT INTO cart_item (user_id, product_id, quantity, create_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
     `;
-    db.query(insertSql, [userId, productId, quantity, now, now], callback);
+    db.query(insertSql, [userId, productId, qty, now, now], callback);
   });
 }
 
 // Update quantity for a specific item (by user + product)
 function updateItem(userId, productId, quantity, callback) {
   const now = new Date();
+  const qty = Number(quantity) || 0;
   const sql = `
     UPDATE cart_item
     SET quantity = ?, updated_at = ?
     WHERE user_id = ? AND product_id = ?
   `;
-  db.query(sql, [quantity, now, userId, productId], callback);
+  db.query(sql, [qty, now, userId, productId], callback);
 }
 
 // Remove single item from cart (by user + product)

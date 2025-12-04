@@ -1,5 +1,6 @@
 // ...existing code...
 const ProductModel = require('../models/ProductModel');
+const CartModel = require('../models/CartModel'); // added
 
 function list(req, res) {
     ProductModel.getAll((err, products) => {
@@ -8,12 +9,61 @@ function list(req, res) {
             return res.status(500).send('Database error');
         }
         // Render inventory for admin, shopping for normal users
-        if (req.path === '/inventory' || (req.session && req.session.user && req.session.user.role === 'admin')) {
-            return res.render('inventory', { products, user: req.session.user });
+        if (req.path === '/inventory' ||
+            (req.session && req.session.user && req.session.user.role === 'admin')) {
+            return res.render('inventory', {
+                products,
+                user: req.session.user,
+                error: req.flash('error'),
+                success: req.flash('success')
+            });
         }
-        res.render('shopping', { products, user: req.session.user });
+
+        // normal shopping page
+        // If user logged in, get their cart quantities so we can compute remaining stock per product
+        if (req.session && req.session.user) {
+            const userId = req.session.user.id;
+            CartModel.getCartByUser(userId, (err2, items) => {
+                if (err2) {
+                    console.error(err2);
+                    // render anyway with empty map
+                    return res.render('shopping', {
+                        products,
+                        user: req.session.user,
+                        cartMap: {},
+                        error: req.flash('error'),
+                        success: req.flash('success')
+                    });
+                }
+
+                const cartMap = {};
+                (items || []).forEach(it => {
+                    cartMap[it.productId] = Number(it.cart_quantity || it.quantity || 0);
+                });
+
+                return res.render('shopping', {
+                    products,
+                    user: req.session.user,
+                    cartMap,
+                    error: req.flash('error'),
+                    success: req.flash('success')
+                });
+            });
+
+            return;
+        }
+
+        // not logged in -> no cartMap
+        res.render('shopping', {
+            products,
+            user: req.session.user,
+            cartMap: {},
+            error: req.flash('error'),
+            success: req.flash('success')
+        });
     });
 }
+
 
 function getById(req, res) {
     const id = parseInt(req.params.id, 10);

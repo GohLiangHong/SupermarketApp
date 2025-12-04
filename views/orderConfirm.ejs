@@ -130,12 +130,8 @@
 
       <hr>
 
-            <!-- Confirm / Cancel buttons -->
-      <div class="d-flex justify-content-between">
-        <a href="/cart" class="btn btn-outline-secondary">
-          Cancel / Edit Order
-        </a>
-
+      <!-- Confirm button only (cancel/edit removed) -->
+      <div class="d-flex justify-content-end">
         <form action="/orders/confirm/<%= order.id %>" method="POST">
           <button type="submit" class="btn btn-primary">
             Confirm Order

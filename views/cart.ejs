@@ -65,7 +65,7 @@
                         type="checkbox"
                         class="form-check-input item-select"
                         data-price="<%= cart[i].price %>"
-                        data-qty="<%= cart[i].quantity %>"
+                        data-qty="<%= cart[i].cart_quantity || cart[i].quantity || 0 %>"
                         data-product-id="<%= cart[i].productId %>"
                         checked
                       >
@@ -88,7 +88,7 @@
                           name="quantity"
                           min="1"
                           max="<%= cart[i].stock %>"
-                          value="<%= cart[i].quantity %>"
+                          value="<%= cart[i].cart_quantity || cart[i].quantity || 0 %>"
                           class="form-control form-control-sm text-center"
                           style="max-width: 80px;"
                         >
@@ -99,7 +99,7 @@
                       </div>
                     </td>
                     <td class="text-end">
-                      <% const lineTotal = cart[i].price * cart[i].quantity; %>
+                      <% const lineTotal = (Number(cart[i].price || 0) * Number(cart[i].cart_quantity || cart[i].quantity || 0)); %>
                       $<%= lineTotal.toFixed(2) %>
                       <% total += lineTotal; %>
                     </td>

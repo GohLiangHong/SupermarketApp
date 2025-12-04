@@ -74,15 +74,10 @@
             <tr class="order-row"
                 data-id="<%= order.id %>"
                 data-ref="<%= (order.referenceId || '').toLowerCase() %>"
-                data-status="<%= order.status %>"
+                data-status="PENDING"
                 data-total="<%= order.total %>">
-              <% const isPending = (order.status === 'PENDING'); %>
-
               <td>
-                <!-- If status is PENDING, go to confirmation page, else go to detail/receipt -->
-                <a href="<%= isPending ? ('/orders/confirm/' + order.id) : ('/orders/' + order.id) %>">
-                  <%= order.referenceId %>
-                </a>
+                <a href="/orders/<%= order.id %>"><%= order.referenceId %></a>
               </td>
 
               <td>
@@ -92,19 +87,14 @@
               </td>
 
               <td>
-                <span class="badge bg-secondary"><%= order.status %></span>
+                <span class="badge bg-secondary">PENDING</span>
               </td>
 
               <td><%= order.paymentMode %></td>
               <td>$<%= Number(order.total).toFixed(2) %></td>
 
               <td>
-                <a
-                  href="<%= isPending ? ('/orders/confirm/' + order.id) : ('/orders/' + order.id) %>"
-                  class="btn btn-sm btn-primary"
-                >
-                  <%= isPending ? 'Confirm' : 'View' %>
-                </a>
+                <a href="/orders/<%= order.id %>" class="btn btn-sm btn-primary">View</a>
               </td>
             </tr>
           <% }); %>

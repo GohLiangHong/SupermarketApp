@@ -50,51 +50,91 @@
           </div>
         </div>
       </div>
+      <% if (error && error.length) { %>
+        <div class="alert alert-danger"><%= error[0] %></div>
+      <% } %>
+      <% if (success && success.length) { %>
+        <div class="alert alert-success"><%= success[0] %></div>
+      <% } %>
 
       <!-- PRODUCT GRID -->
       <div id="productGrid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
-        <% for (let i = 0; i < products.length; i++) { %>
+        <% for (let i = 0; i < products.length; i++) { 
+             const prod = products[i];
+             const inCart = (typeof cartMap !== 'undefined' && cartMap[prod.id]) ? cartMap[prod.id] : 0;
+             const remaining = Math.max(0, (Number(prod.quantity) || 0) - Number(inCart || 0));
+        %>
           <div class="col">
             <div class="card card-product h-100 product-card"
-                 data-name="<%= products[i].productName.toLowerCase() %>"
-                 data-price="<%= products[i].price %>"
-                 data-qty="<%= products[i].quantity %>">
+                 data-name="<%= prod.productName.toLowerCase() %>"
+                 data-price="<%= prod.price %>"
+                 data-qty="<%= prod.quantity %>"
+                 data-in-cart="<%= inCart %>"
+                 data-remaining="<%= remaining %>">
 
-              <a href="/product/<%= products[i].id %>">
-                <img src="/images/<%= products[i].image %>"
+              <a href="/product/<%= prod.id %>">
+                <img src="/images/<%= prod.image %>"
                      class="card-img-top"
-                     alt="<%= products[i].productName %>">
+                     alt="<%= prod.productName %>">
               </a>
 
               <div class="card-body d-flex flex-column">
                 <h6 class="card-title mb-1 text-truncate">
-                  <a href="/product/<%= products[i].id %>" class="text-decoration-none text-dark">
-                    <%= products[i].productName %>
+                  <a href="/product/<%= prod.id %>" class="text-decoration-none text-dark">
+                    <%= prod.productName %>
                   </a>
                 </h6>
 
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <span class="price-tag">
-                    $<%= products[i].price.toFixed(2) %>
+                    $<%= prod.price.toFixed(2) %>
                   </span>
                   <span class="badge bg-light text-dark stock-pill">
-                    Stock: <%= products[i].quantity %>
+                    Stock: <%= prod.quantity %>
                   </span>
                 </div>
 
-                <form action="/add-to-cart/<%= products[i].id %>" method="POST" class="mt-auto">
+                <form action="/add-to-cart/<%= prod.id %>" method="POST" class="mt-auto product-add-form">
                   <div class="input-group input-group-sm mb-2">
                     <span class="input-group-text">Qty</span>
-                    <input type="number"
-                           name="quantity"
-                           min="1"
-                           max="<%= products[i].quantity %>"
-                           value="1"
-                           class="form-control text-center">
+                    <% if (remaining <= 0) { %>
+                      <input type="number"
+                             name="quantity"
+                             min="0"
+                             max="0"
+                             value="0"
+                             class="form-control text-center"
+                             disabled>
+                    <% } else { %>
+                      <input type="number"
+                             name="quantity"
+                             min="1"
+                             max="<%= remaining %>"
+                             value="1"
+                             class="form-control text-center">
+                    <% } %>
                   </div>
-                  <button type="submit" class="btn btn-primary w-100">
-                    Add to cart
-                  </button>
+
+                  <% if (inCart > 0) { %>
+                    <div class="mb-2">
+                      <small class="text-muted">In cart: <strong><%= inCart %></strong></small>
+                      <% if (remaining <= 0) { %>
+                        <div><small class="text-danger">You have reached the maximum available stock in your cart.</small></div>
+                      <% } %>
+                    </div>
+                  <% } %>
+
+                  <div class="product-error text-danger small d-none mb-2"></div>
+
+                  <% if (remaining <= 0) { %>
+                    <button type="button" class="btn btn-secondary w-100" disabled>
+                      Out of stock
+                    </button>
+                  <% } else { %>
+                    <button type="submit" class="btn btn-primary w-100">
+                      Add to cart
+                    </button>
+                  <% } %>
                 </form>
               </div>
             </div>
@@ -169,6 +209,49 @@
         });
       }
     })();
+
+    // Validate add-to-cart forms against remaining stock and show inline message
+    document.addEventListener('DOMContentLoaded', function () {
+      const forms = document.querySelectorAll('.product-add-form');
+      forms.forEach(form => {
+        form.addEventListener('submit', function (e) {
+          const card = form.closest('.product-card');
+          if (!card) return;
+          const remaining = parseInt(card.dataset.remaining || '0', 10);
+          const qtyInput = form.querySelector('input[name="quantity"]');
+          const errEl = form.querySelector('.product-error');
+          const qty = qtyInput ? parseInt(qtyInput.value || '0', 10) : 0;
+
+          if (remaining <= 0) {
+            e.preventDefault();
+            if (errEl) {
+              errEl.textContent = 'You already have the maximum available stock in your cart.';
+              errEl.classList.remove('d-none');
+            } else {
+              alert('You already have the maximum available stock in your cart.');
+            }
+            return;
+          }
+
+          if (qty > remaining) {
+            e.preventDefault();
+            if (errEl) {
+              errEl.textContent = `Cannot add ${qty}. Only ${remaining} unit(s) remaining (after what's already in your cart).`;
+              errEl.classList.remove('d-none');
+            } else {
+              alert(`Cannot add ${qty}. Only ${remaining} unit(s) remaining.`);
+            }
+            return;
+          }
+
+          // hide error if any and allow submit
+          if (errEl) {
+            errEl.classList.add('d-none');
+            errEl.textContent = '';
+          }
+        });
+      });
+    });
   </script>
 </body>
 </html>
