@@ -31,6 +31,8 @@ const { setLocals } = require('./middleware/locals');
 
 const FeedbackController = require('./controllers/FeedbackController');
 const PaymentController = require('./controllers/PaymentController');
+const NetsPaymentController = require('./controllers/NetsPaymentController');
+
 
 const app = express();
 
@@ -172,6 +174,15 @@ app.post('/admin/feedback/:id/delete',
 app.get('/payments/paypal', checkAuthenticated, PaymentController.showPaymentPage);
 app.post('/api/paypal/create-order', checkAuthenticated, PaymentController.createOrderApi);
 app.post('/api/paypal/capture-order', checkAuthenticated, PaymentController.captureOrderApi);
+// payments (NETS)
+app.get('/payments/nets', checkAuthenticated, NetsPaymentController.showNetsPaymentPage);
+app.get('/sse/nets/payment-status/:txnRetrievalRef', checkAuthenticated, NetsPaymentController.ssePaymentStatus);
+
+// ✅ NETSDemo alias:
+app.get('/sse/payment-status/:txnRetrievalRef', checkAuthenticated, NetsPaymentController.ssePaymentStatus);
+
+app.get('/payments/nets/success', checkAuthenticated, NetsPaymentController.netsSuccess);
+app.get('/payments/nets/fail', checkAuthenticated, NetsPaymentController.netsFail);
 
 // export + start
 module.exports = app;

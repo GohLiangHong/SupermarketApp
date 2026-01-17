@@ -1,6 +1,6 @@
 const OrderModel = require('../models/Order');
 const CartModel = require('../models/CartModel');
-const paypalService = require('../service/paypal');
+const paypalService = require('../services/paypal');
 const db = require('../db');
 
 async function showPaymentPage(req, res) {
