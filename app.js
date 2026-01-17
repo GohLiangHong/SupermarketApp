@@ -30,6 +30,7 @@ const { checkAuthenticated, checkAdmin } = require('./middleware/auth');
 const { setLocals } = require('./middleware/locals');
 
 const FeedbackController = require('./controllers/FeedbackController');
+const PaymentController = require('./controllers/PaymentController');
 
 const app = express();
 
@@ -166,6 +167,11 @@ app.post('/admin/feedback/:id/delete',
   checkAdmin,
   FeedbackController.deleteFeedback
 );
+
+// payments (PayPal)
+app.get('/payments/paypal', checkAuthenticated, PaymentController.showPaymentPage);
+app.post('/api/paypal/create-order', checkAuthenticated, PaymentController.createOrderApi);
+app.post('/api/paypal/capture-order', checkAuthenticated, PaymentController.captureOrderApi);
 
 // export + start
 module.exports = app;
