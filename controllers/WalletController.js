@@ -261,6 +261,20 @@ async function netsWalletFail(req, res) {
   return res.redirect('/wallet');
 }
 
+async function getBalance(req, res) {
+  const user = req.session.user;
+  if (!user) return res.status(401).json({ error: 'not_logged_in' });
+
+  try {
+    await Wallet.ensureWallet(user.id);
+    const wallet = await Wallet.getWallet(user.id);
+    return res.json({ balance: Number(wallet?.balance || 0) });
+  } catch (e) {
+    console.error('getBalance error', e);
+    return res.status(500).json({ error: 'server_error' });
+  }
+}
+
 module.exports = {
   walletHome,
   topupStart,
@@ -268,5 +282,6 @@ module.exports = {
   createWalletPaypalOrder,
   captureWalletPaypalOrder,
   netsWalletSuccess,
-  netsWalletFail
+  netsWalletFail,
+  getBalance
 };

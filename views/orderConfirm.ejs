@@ -149,6 +149,19 @@
       const proceedBtn = document.getElementById('proceedBtn');
       const editCartBtn = document.getElementById('editCartBtn');
 
+      function showInlineError(msg) {
+        let el = document.getElementById('ewalletErrorAlert');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'ewalletErrorAlert';
+          el.className = 'alert alert-danger mt-3';
+          const container = document.querySelector('.container') || document.body;
+          container.insertBefore(el, container.firstChild);
+        }
+        el.textContent = msg;
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+
       proceedBtn.addEventListener('click', function(){
         const selected = document.querySelector('input[name="paymentMethod"]:checked');
         if (!selected) { alert('Please select a payment method.'); return; }
@@ -161,7 +174,25 @@
         } else if (method === 'NETS') {
           window.location.href = '/payments/nets?orderId=' + encodeURIComponent(orderId);
         } else if (method === 'EWALLET') {
-          window.location.href = '/payments/ewallet?orderId=' + encodeURIComponent(orderId);
+          // new: check server-side wallet balance before redirecting
+          fetch('/api/wallet/balance', { credentials: 'same-origin' })
+            .then(r => {
+              if (!r.ok) throw r;
+              return r.json();
+            })
+            .then(data => {
+              const balance = Number(data.balance || 0);
+              const total = Number(<%= parseFloat(order.total || 0).toFixed(2) %>);
+              if (balance + 1e-9 < total) {
+                showInlineError('Insufficient e-wallet balance. Please top up or choose another payment method.');
+                return;
+              }
+              // enough balance -> proceed
+              window.location.href = '/payments/ewallet?orderId=' + encodeURIComponent(orderId);
+            })
+            .catch(() => {
+              showInlineError('Unable to verify wallet balance right now. Please try again.');
+            });
         } else {
           alert('Please select a valid payment method.');
         }

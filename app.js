@@ -201,9 +201,12 @@ app.post('/wallet/topup/nets', checkAuthenticated, WalletController.topupStartNe
 app.get('/wallet/nets/success', checkAuthenticated, WalletController.netsWalletSuccess);
 app.get('/wallet/nets/fail', checkAuthenticated, WalletController.netsWalletFail);
 
-// payments (E-Wallet)
+// payments (E-WALLET)
 app.get('/payments/ewallet', checkAuthenticated, EwalletPaymentController.showEwalletPaymentPage);
 app.post('/payments/ewallet/pay', checkAuthenticated, EwalletPaymentController.payWithEwallet);
+
+// API for client-side wallet balance checks
+app.get('/api/wallet/balance', WalletController.getBalance);
 
 // export + start
 module.exports = app;
