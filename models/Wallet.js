@@ -245,67 +245,104 @@ function payOrderWithWallet(userId, orderId, amount) {
     return Promise.reject(new Error('Invalid amount'));
   }
 
-  return new Promise((resolve, reject) => {
-    db.beginTransaction(async (err) => {
-      if (err) return reject(err);
+  // New safer flow:
+  // 1) Check balance first (no transaction) and return early if insufficient.
+  // 2) If enough, start a DB transaction and re-lock the wallet row with FOR UPDATE,
+  //    re-check balance, deduct, mark order, commit.
+  return new Promise(async (resolve, reject) => {
+    try {
+      // ensure wallet exists
+      await ensureWallet(userId);
 
-      try {
-        // ensure wallet exists
-        await ensureWallet(userId);
+      // read current balance (no lock)
+      const walletRows = await new Promise((res, rej) => {
+        db.query(
+          `SELECT user_id, balance FROM wallets WHERE user_id = ?`,
+          [userId],
+          (e, rows) => (e ? rej(e) : res(rows))
+        );
+      });
 
-        // lock wallet row
-        const walletRows = await new Promise((res, rej) => {
+      const wallet = walletRows && walletRows[0];
+      const balance = Number(wallet?.balance || 0);
+
+      if (balance + 1e-9 < amt) {
+        return resolve({
+          success: false,
+          insufficient: true,
+          balance: Number(balance).toFixed(2)
+        });
+      }
+
+      // begin transaction and perform atomic deduct + order update
+      db.beginTransaction((err) => {
+        if (err) return reject(err);
+
+        // lock the wallet row
+        new Promise((res, rej) => {
           db.query(
             `SELECT user_id, balance FROM wallets WHERE user_id = ? FOR UPDATE`,
             [userId],
             (e, rows) => (e ? rej(e) : res(rows))
           );
-        });
+        })
+          .then((rows) => {
+            const w = rows && rows[0];
+            const lockedBalance = Number(w?.balance || 0);
+            if (lockedBalance + 1e-9 < amt) {
+              // still insufficient after locking
+              return new Promise((res, rej) => {
+                db.rollback(() => res({ insufficient: true, balance: Number(lockedBalance).toFixed(2) }));
+              });
+            }
 
-        const wallet = walletRows && walletRows[0];
-        const balance = Number(wallet?.balance || 0);
+            // deduct
+            return new Promise((res, rej) => {
+              db.query(
+                `UPDATE wallets SET balance = balance - ? WHERE user_id = ?`,
+                [amt.toFixed(2), userId],
+                (e) => (e ? rej(e) : res())
+              );
+            });
+          })
+          .then((maybe) => {
+            if (maybe && maybe.insufficient) {
+              return resolve({
+                success: false,
+                insufficient: true,
+                balance: Number(lockedBalance).toFixed(2)
+              });
+            }
 
-        if (balance + 1e-9 < amt) {
-          return db.rollback(() => resolve({
-            success: false,
-            insufficient: true,
-            balance: Number(balance).toFixed(2)
-          }));
-        }
+            // mark order paid (same style as PayPal/NETS)
+            const txnId = `EWALLET-${Date.now()}-${orderId}`;
 
-        // deduct
-        await new Promise((res, rej) => {
-          db.query(
-            `UPDATE wallets SET balance = balance - ? WHERE user_id = ?`,
-            [amt.toFixed(2), userId],
-            (e) => (e ? rej(e) : res())
-          );
-        });
-
-        // mark order paid (same style as PayPal/NETS)
-        const txnId = `EWALLET-${Date.now()}-${orderId}`;
-
-        await new Promise((res, rej) => {
-          db.query(
-            `UPDATE \`order\`
-             SET paymentMode='EWALLET',
-                 status='PAID',
-                 transactionalId=?,
-                 capturedOn=NOW()
-             WHERE id=? AND userid=?`,
-            [txnId, orderId, userId],
-            (e, r) => (e ? rej(e) : res(r))
-          );
-        });
-
-        db.commit((e) => {
-          if (e) return reject(e);
-          resolve({ success: true });
-        });
-      } catch (e) {
-        db.rollback(() => reject(e));
-      }
-    });
+            return new Promise((res, rej) => {
+              db.query(
+                `UPDATE \`order\`
+                 SET paymentMode='EWALLET',
+                     status='PAID',
+                     transactionalId=?,
+                     capturedOn=NOW()
+                 WHERE id=? AND userid=?`,
+                [txnId, orderId, userId],
+                (e, r) => (e ? rej(e) : res(r))
+              );
+            });
+          })
+          .then(() => {
+            db.commit((e) => {
+              if (e) return reject(e);
+              resolve({ success: true });
+            });
+          })
+          .catch((e) => {
+            db.rollback(() => reject(e));
+          });
+      });
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
