@@ -122,6 +122,11 @@
                 <input class="form-check-input me-2" type="radio" name="paymentMethod" value="NETS">
                 <img src="/images/nets.png" alt="NETS" class="method-logo"> NETS
               </label>
+              <label class="list-group-item d-flex align-items-center">
+                <input class="form-check-input me-2" type="radio" name="paymentMethod" value="EWALLET">
+                <img src="/images/ewallet.png" alt="E-Wallet" class="method-logo"> E-Wallet
+              </label>
+
             </div>
           </form>
 
@@ -143,22 +148,25 @@
     (function(){
       const proceedBtn = document.getElementById('proceedBtn');
       const editCartBtn = document.getElementById('editCartBtn');
+
       proceedBtn.addEventListener('click', function(){
         const selected = document.querySelector('input[name="paymentMethod"]:checked');
         if (!selected) { alert('Please select a payment method.'); return; }
+
         const method = selected.value;
         const orderId = '<%= order.id %>';
-        // routes to be implemented later — adjust as needed
+
         if (method === 'PAYPAL') {
           window.location.href = '/payments/paypal?orderId=' + encodeURIComponent(orderId);
         } else if (method === 'NETS') {
           window.location.href = '/payments/nets?orderId=' + encodeURIComponent(orderId);
+        } else if (method === 'EWALLET') {
+          window.location.href = '/payments/ewallet?orderId=' + encodeURIComponent(orderId);
         } else {
           alert('Please select a valid payment method.');
         }
       });
 
-      // Edit Cart: try referrer first, then history.back(), then fallback to /cart
       if (editCartBtn) {
         editCartBtn.addEventListener('click', function () {
           try {
@@ -166,15 +174,13 @@
               window.location.href = document.referrer;
               return;
             }
-          } catch (e) { /* ignore */ }
-          if (history.length > 1) {
-            history.back();
-            return;
-          }
+          } catch (e) {}
+          if (history.length > 1) { history.back(); return; }
           window.location.href = '/cart';
         });
       }
     })();
   </script>
+
 </body>
 </html>

@@ -33,6 +33,7 @@ const FeedbackController = require('./controllers/FeedbackController');
 const PaymentController = require('./controllers/PaymentController');
 const NetsPaymentController = require('./controllers/NetsPaymentController');
 const WalletController = require('./controllers/WalletController');
+const EwalletPaymentController = require('./controllers/EwalletPaymentController');
 
 
 const app = express();
@@ -199,6 +200,11 @@ app.post('/wallet/topup', checkAuthenticated, WalletController.topupStart);
 app.post('/wallet/topup/nets', checkAuthenticated, WalletController.topupStartNets);
 app.get('/wallet/nets/success', checkAuthenticated, WalletController.netsWalletSuccess);
 app.get('/wallet/nets/fail', checkAuthenticated, WalletController.netsWalletFail);
+
+// payments (E-Wallet)
+app.get('/payments/ewallet', checkAuthenticated, EwalletPaymentController.showEwalletPaymentPage);
+app.post('/payments/ewallet/pay', checkAuthenticated, EwalletPaymentController.payWithEwallet);
+
 // export + start
 module.exports = app;
 

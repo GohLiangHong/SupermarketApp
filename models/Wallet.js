@@ -232,6 +232,82 @@ function markFailed(txId, userId, rawJsonObj) {
     db.query(sql, [JSON.stringify(rawJsonObj || {}), txId, userId], (err, r) => (err ? reject(err) : resolve(r)));
   });
 }
+/**
+ * Pay an order using wallet balance (atomic).
+ * - locks wallet row
+ * - checks balance >= amount
+ * - deducts wallet
+ * - marks order PAID (EWALLET)
+ */
+function payOrderWithWallet(userId, orderId, amount) {
+  const amt = Number(amount);
+  if (!Number.isFinite(amt) || amt <= 0) {
+    return Promise.reject(new Error('Invalid amount'));
+  }
+
+  return new Promise((resolve, reject) => {
+    db.beginTransaction(async (err) => {
+      if (err) return reject(err);
+
+      try {
+        // ensure wallet exists
+        await ensureWallet(userId);
+
+        // lock wallet row
+        const walletRows = await new Promise((res, rej) => {
+          db.query(
+            `SELECT user_id, balance FROM wallets WHERE user_id = ? FOR UPDATE`,
+            [userId],
+            (e, rows) => (e ? rej(e) : res(rows))
+          );
+        });
+
+        const wallet = walletRows && walletRows[0];
+        const balance = Number(wallet?.balance || 0);
+
+        if (balance + 1e-9 < amt) {
+          return db.rollback(() => resolve({
+            success: false,
+            insufficient: true,
+            balance: Number(balance).toFixed(2)
+          }));
+        }
+
+        // deduct
+        await new Promise((res, rej) => {
+          db.query(
+            `UPDATE wallets SET balance = balance - ? WHERE user_id = ?`,
+            [amt.toFixed(2), userId],
+            (e) => (e ? rej(e) : res())
+          );
+        });
+
+        // mark order paid (same style as PayPal/NETS)
+        const txnId = `EWALLET-${Date.now()}-${orderId}`;
+
+        await new Promise((res, rej) => {
+          db.query(
+            `UPDATE \`order\`
+             SET paymentMode='EWALLET',
+                 status='PAID',
+                 transactionalId=?,
+                 capturedOn=NOW()
+             WHERE id=? AND userid=?`,
+            [txnId, orderId, userId],
+            (e, r) => (e ? rej(e) : res(r))
+          );
+        });
+
+        db.commit((e) => {
+          if (e) return reject(e);
+          resolve({ success: true });
+        });
+      } catch (e) {
+        db.rollback(() => reject(e));
+      }
+    });
+  });
+}
 
 module.exports = {
   ensureWallet,
@@ -243,5 +319,7 @@ module.exports = {
   markNetsQrCreated,
   completeTopup,
   completeTopupNets,
-  markFailed
+  markFailed,
+  payOrderWithWallet // <-- add this
 };
+
