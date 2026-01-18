@@ -32,6 +32,7 @@ const { setLocals } = require('./middleware/locals');
 const FeedbackController = require('./controllers/FeedbackController');
 const PaymentController = require('./controllers/PaymentController');
 const NetsPaymentController = require('./controllers/NetsPaymentController');
+const WalletController = require('./controllers/WalletController');
 
 
 const app = express();
@@ -183,7 +184,21 @@ app.get('/sse/payment-status/:txnRetrievalRef', checkAuthenticated, NetsPaymentC
 
 app.get('/payments/nets/success', checkAuthenticated, NetsPaymentController.netsSuccess);
 app.get('/payments/nets/fail', checkAuthenticated, NetsPaymentController.netsFail);
+// ================== E-WALLET ROUTES ==================
+app.get('/wallet', checkAuthenticated, WalletController.walletHome);
+app.post('/wallet/topup', checkAuthenticated, WalletController.topupStart);
 
+// PayPal for Wallet
+app.post('/api/paypal/wallet/create-order', checkAuthenticated, WalletController.createWalletPaypalOrder);
+app.post('/api/paypal/wallet/capture-order', checkAuthenticated, WalletController.captureWalletPaypalOrder);
+
+app.get('/wallet', checkAuthenticated, WalletController.walletHome);
+app.post('/wallet/topup', checkAuthenticated, WalletController.topupStart);
+
+// NETS top up for Wallet
+app.post('/wallet/topup/nets', checkAuthenticated, WalletController.topupStartNets);
+app.get('/wallet/nets/success', checkAuthenticated, WalletController.netsWalletSuccess);
+app.get('/wallet/nets/fail', checkAuthenticated, WalletController.netsWalletFail);
 // export + start
 module.exports = app;
 

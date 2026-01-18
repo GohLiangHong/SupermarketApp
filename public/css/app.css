@@ -157,3 +157,91 @@ body {
   font-size: 0.8rem;
 }
 
+/* =========================
+   WALLET UI ENHANCEMENTS
+   ========================= */
+
+.wallet-card {
+  border-radius: 14px;
+  border: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  background: #fff;
+}
+
+.wallet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wallet-balance {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #198754; /* bootstrap success */
+}
+
+.wallet-subtext {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.wallet-divider {
+  margin: 1.25rem 0;
+  border-top: 1px solid #eee;
+}
+
+/* Top-up buttons */
+.topup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+.topup-btn {
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: 2px solid #dee2e6;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
+}
+
+.topup-btn:hover {
+  border-color: #0d6efd;
+  background: #eef4ff;
+  transform: translateY(-2px);
+}
+
+/* Active state if you later want JS toggle */
+.topup-btn.active {
+  border-color: #0d6efd;
+  background: #e7f1ff;
+}
+
+/* PayPal section */
+.wallet-paypal-box {
+  border: 1px dashed #ced4da;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.wallet-paypal-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* Transaction info */
+.wallet-tx-box {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 0.9rem;
+}
+
+/* Mobile spacing */
+@media (max-width: 576px) {
+  .wallet-balance {
+    font-size: 1.6rem;
+  }
+}

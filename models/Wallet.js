@@ -1,0 +1,247 @@
+const db = require('../db');
+
+function ensureWallet(userId) {
+  const sql = `
+    INSERT INTO wallets (user_id, balance)
+    VALUES (?, 0.00)
+    ON DUPLICATE KEY UPDATE user_id = user_id
+  `;
+  return new Promise((resolve, reject) => {
+    db.query(sql, [userId], (err, r) => (err ? reject(err) : resolve(r)));
+  });
+}
+
+function getWallet(userId) {
+  const sql = `SELECT user_id, balance, updated_at FROM wallets WHERE user_id = ?`;
+  return new Promise((resolve, reject) => {
+    db.query(sql, [userId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows && rows[0] ? rows[0] : null);
+    });
+  });
+}
+
+function listTransactions(userId, limit = 10) {
+  const sql = `
+    SELECT id, type, amount, status,
+           paypal_order_id, paypal_capture_id,
+           nets_txn_ref,
+           created_at
+    FROM wallet_transactions
+    WHERE user_id = ?
+    ORDER BY id DESC
+    LIMIT ?
+  `;
+  return new Promise((resolve, reject) => {
+    db.query(sql, [userId, Number(limit)], (err, rows) => (err ? reject(err) : resolve(rows || [])));
+  });
+}
+
+function createTopupTransaction(userId, amount) {
+  const sql = `
+    INSERT INTO wallet_transactions (user_id, type, amount, status)
+    VALUES (?, 'TOPUP', ?, 'CREATED')
+  `;
+  return new Promise((resolve, reject) => {
+    db.query(sql, [userId, amount], (err, r) => {
+      if (err) return reject(err);
+      resolve(r.insertId);
+    });
+  });
+}
+
+function getTransactionById(txId) {
+  const sql = `SELECT * FROM wallet_transactions WHERE id = ?`;
+  return new Promise((resolve, reject) => {
+    db.query(sql, [txId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows && rows[0] ? rows[0] : null);
+    });
+  });
+}
+
+function markPaypalOrderCreated(txId, paypalOrderId) {
+  const sql = `
+    UPDATE wallet_transactions
+    SET status = 'PAYPAL_ORDER_CREATED', paypal_order_id = ?
+    WHERE id = ?
+  `;
+  return new Promise((resolve, reject) => {
+    db.query(sql, [paypalOrderId, txId], (err, r) => (err ? reject(err) : resolve(r)));
+  });
+}
+
+function markNetsQrCreated(txId, userId, netsTxnRef, rawJsonObj) {
+  const sql = `
+    UPDATE wallet_transactions
+    SET status = 'NETS_QR_CREATED', nets_txn_ref = ?, raw_json = ?
+    WHERE id = ? AND user_id = ?
+  `;
+  return new Promise((resolve, reject) => {
+    db.query(sql, [netsTxnRef, JSON.stringify(rawJsonObj || {}), txId, userId], (err, r) =>
+      (err ? reject(err) : resolve(r))
+    );
+  });
+}
+
+/**
+ * Atomically:
+ * 1) mark tx completed
+ * 2) add balance
+ */
+function completeTopup(txId, userId, paypalCaptureId, rawJsonObj) {
+  return new Promise((resolve, reject) => {
+    db.beginTransaction(async (err) => {
+      if (err) return reject(err);
+
+      try {
+        const txRows = await new Promise((res, rej) => {
+          db.query(`SELECT * FROM wallet_transactions WHERE id = ? FOR UPDATE`, [txId], (e, rows) => {
+            if (e) return rej(e);
+            res(rows);
+          });
+        });
+
+        const tx = txRows && txRows[0];
+        if (!tx) throw new Error('Transaction not found');
+        if (tx.user_id !== userId) throw new Error('Not allowed');
+        if (tx.status === 'COMPLETED') {
+          await new Promise((res, rej) => db.commit((e) => (e ? rej(e) : res())));
+          return resolve({ alreadyCompleted: true });
+        }
+
+        const amount = Number(tx.amount || 0).toFixed(2);
+        if (amount === '0.00') throw new Error('Invalid amount');
+
+        await new Promise((res, rej) => {
+          db.query(
+            `INSERT INTO wallets (user_id, balance) VALUES (?, 0.00)
+             ON DUPLICATE KEY UPDATE user_id = user_id`,
+            [userId],
+            (e) => (e ? rej(e) : res())
+          );
+        });
+
+        await new Promise((res, rej) => {
+          db.query(`SELECT * FROM wallets WHERE user_id = ? FOR UPDATE`, [userId], (e) => (e ? rej(e) : res()));
+        });
+
+        await new Promise((res, rej) => {
+          db.query(
+            `UPDATE wallet_transactions
+             SET status='COMPLETED', paypal_capture_id=?, raw_json=?
+             WHERE id=? AND user_id=?`,
+            [paypalCaptureId, JSON.stringify(rawJsonObj || {}), txId, userId],
+            (e) => (e ? rej(e) : res())
+          );
+        });
+
+        await new Promise((res, rej) => {
+          db.query(
+            `UPDATE wallets
+             SET balance = balance + ?
+             WHERE user_id = ?`,
+            [amount, userId],
+            (e) => (e ? rej(e) : res())
+          );
+        });
+
+        db.commit((e) => (e ? reject(e) : resolve({ success: true })));
+      } catch (e) {
+        db.rollback(() => reject(e));
+      }
+    });
+  });
+}
+
+/**
+ * NETS version (same atomic behavior)
+ */
+function completeTopupNets(txId, userId, netsTxnRef, rawJsonObj) {
+  return new Promise((resolve, reject) => {
+    db.beginTransaction(async (err) => {
+      if (err) return reject(err);
+
+      try {
+        const txRows = await new Promise((res, rej) => {
+          db.query(`SELECT * FROM wallet_transactions WHERE id = ? FOR UPDATE`, [txId], (e, rows) => {
+            if (e) return rej(e);
+            res(rows);
+          });
+        });
+
+        const tx = txRows && txRows[0];
+        if (!tx) throw new Error('Transaction not found');
+        if (tx.user_id !== userId) throw new Error('Not allowed');
+        if (tx.status === 'COMPLETED') {
+          await new Promise((res, rej) => db.commit((e) => (e ? rej(e) : res())));
+          return resolve({ alreadyCompleted: true });
+        }
+
+        const amount = Number(tx.amount || 0).toFixed(2);
+        if (amount === '0.00') throw new Error('Invalid amount');
+
+        await new Promise((res, rej) => {
+          db.query(
+            `INSERT INTO wallets (user_id, balance) VALUES (?, 0.00)
+             ON DUPLICATE KEY UPDATE user_id = user_id`,
+            [userId],
+            (e) => (e ? rej(e) : res())
+          );
+        });
+
+        await new Promise((res, rej) => {
+          db.query(`SELECT * FROM wallets WHERE user_id = ? FOR UPDATE`, [userId], (e) => (e ? rej(e) : res()));
+        });
+
+        await new Promise((res, rej) => {
+          db.query(
+            `UPDATE wallet_transactions
+             SET status='COMPLETED', nets_txn_ref=?, raw_json=?
+             WHERE id=? AND user_id=?`,
+            [netsTxnRef, JSON.stringify(rawJsonObj || {}), txId, userId],
+            (e) => (e ? rej(e) : res())
+          );
+        });
+
+        await new Promise((res, rej) => {
+          db.query(
+            `UPDATE wallets
+             SET balance = balance + ?
+             WHERE user_id = ?`,
+            [amount, userId],
+            (e) => (e ? rej(e) : res())
+          );
+        });
+
+        db.commit((e) => (e ? reject(e) : resolve({ success: true })));
+      } catch (e) {
+        db.rollback(() => reject(e));
+      }
+    });
+  });
+}
+
+function markFailed(txId, userId, rawJsonObj) {
+  const sql = `
+    UPDATE wallet_transactions
+    SET status='FAILED', raw_json=?
+    WHERE id=? AND user_id=?
+  `;
+  return new Promise((resolve, reject) => {
+    db.query(sql, [JSON.stringify(rawJsonObj || {}), txId, userId], (err, r) => (err ? reject(err) : resolve(r)));
+  });
+}
+
+module.exports = {
+  ensureWallet,
+  getWallet,
+  listTransactions,
+  createTopupTransaction,
+  getTransactionById,
+  markPaypalOrderCreated,
+  markNetsQrCreated,
+  completeTopup,
+  completeTopupNets,
+  markFailed
+};

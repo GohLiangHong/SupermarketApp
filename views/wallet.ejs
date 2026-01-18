@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>E-Wallet</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="/css/app.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Page-scoped styling (GrabPay / FairPrice-ish clean card UI) -->
+  <style>
+    .wallet-hero {
+      border-radius: 18px;
+      padding: 18px 18px;
+      background: linear-gradient(135deg, rgba(13,110,253,0.15), rgba(25,135,84,0.12));
+      border: 1px solid rgba(13,110,253,0.10);
+    }
+    .wallet-hero .brand-pill {
+      font-weight: 700;
+      letter-spacing: .3px;
+      font-size: .85rem;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(13,110,253,0.12);
+      border: 1px solid rgba(13,110,253,0.18);
+      color: #0d6efd;
+    }
+    .wallet-balance {
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .wallet-sub {
+      color: #6c757d;
+      font-size: .9rem;
+    }
+    .wallet-card {
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      overflow: hidden;
+      background: #fff;
+    }
+    .wallet-card .card-body {
+      padding: 18px;
+    }
+    .wallet-section-title {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+    .topup-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+    @media (max-width: 992px) {
+      .topup-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 576px) {
+      .topup-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    .topup-chip {
+      border-radius: 14px;
+      padding: 12px 10px;
+      border: 1px solid #e9ecef;
+      background: #f8f9fa;
+      font-weight: 700;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      text-align: center;
+      user-select: none;
+      cursor: pointer;
+    }
+    .topup-chip:hover {
+      transform: translateY(-2px);
+      border-color: rgba(13,110,253,0.35);
+      box-shadow: 0 10px 18px rgba(13,110,253,0.12);
+      background: #eef4ff;
+    }
+    .btn-check:checked + .topup-chip {
+      border-color: rgba(13,110,253,0.55);
+      background: rgba(13,110,253,0.10);
+      box-shadow: 0 10px 18px rgba(13,110,253,0.14);
+      color: #0d6efd;
+    }
+
+    .custom-box {
+      border: 1px dashed #ced4da;
+      background: #fbfbfb;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .confirm-btn {
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 700;
+    }
+
+    .tx-table {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #eef0f2;
+    }
+    .tx-table thead th {
+      font-size: .85rem;
+      letter-spacing: .2px;
+      color: #495057;
+      background: #f7f8fa !important;
+      border-bottom: 1px solid #eef0f2 !important;
+    }
+    .tx-table tbody td {
+      vertical-align: middle;
+    }
+    .tx-type {
+      font-weight: 700;
+    }
+    .tx-amount {
+      font-weight: 800;
+    }
+    .tx-meta {
+      font-size: .85rem;
+      color: #6c757d;
+    }
+    .badge-soft {
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-weight: 700;
+      font-size: .78rem;
+    }
+    .badge-soft-success {
+      background: rgba(25,135,84,0.12);
+      color: #198754;
+      border: 1px solid rgba(25,135,84,0.18);
+    }
+    .badge-soft-warning {
+      background: rgba(255,193,7,0.16);
+      color: #856404;
+      border: 1px solid rgba(255,193,7,0.26);
+    }
+    .badge-soft-danger {
+      background: rgba(220,53,69,0.12);
+      color: #dc3545;
+      border: 1px solid rgba(220,53,69,0.18);
+    }
+
+    /* NEW: payment method tiles */
+    .pay-method-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 576px) {
+      .pay-method-grid { grid-template-columns: 1fr; }
+    }
+    .pay-tile {
+      border-radius: 14px;
+      padding: 12px 12px;
+      border: 1px solid #e9ecef;
+      background: #f8f9fa;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      min-height: 56px;
+    }
+    .pay-tile:hover {
+      transform: translateY(-2px);
+      border-color: rgba(13,110,253,0.35);
+      box-shadow: 0 10px 18px rgba(13,110,253,0.12);
+      background: #eef4ff;
+    }
+    .btn-check:checked + .pay-tile {
+      border-color: rgba(13,110,253,0.55);
+      background: rgba(13,110,253,0.10);
+      box-shadow: 0 10px 18px rgba(13,110,253,0.14);
+    }
+    .pay-logo {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid #eef0f2;
+      border-radius: 10px;
+      padding: 6px;
+    }
+    .pay-name {
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .pay-desc {
+      font-size: .85rem;
+      color: #6c757d;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+
+<body class="bg-page">
+  <%- include('partials/navbar', { active: 'wallet' }) %>
+
+  <main class="container app-main">
+    <div class="row g-3">
+
+      <!-- LEFT: Balance + Topup -->
+      <div class="col-lg-5">
+        <div class="wallet-card">
+          <div class="card-body">
+            <div class="wallet-hero">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="wallet-sub">My Wallet</div>
+                  <div class="wallet-balance mt-1">
+                    $<%= Number(wallet?.balance || 0).toFixed(2) %>
+                  </div>
+                  <div class="tx-meta mt-2">
+                    Updated: <%= wallet?.updated_at ? new Date(wallet.updated_at).toLocaleString() : '-' %>
+                  </div>
+                </div>
+                <div class="brand-pill">E-WALLET</div>
+              </div>
+            </div>
+
+            <% if (error && error.length) { %>
+              <div class="alert alert-danger mt-3 mb-0"><%= error[0] %></div>
+            <% } %>
+            <% if (success && success.length) { %>
+              <div class="alert alert-success mt-3 mb-0"><%= success[0] %></div>
+            <% } %>
+
+            <div class="mt-4">
+              <div class="wallet-section-title">Quick Top Up</div>
+
+              <!-- default action stays /wallet/topup (PayPal), we will override via JS when NETS is selected -->
+              <form action="/wallet/topup" method="POST" id="walletTopupForm">
+
+                <!-- Preset amounts -->
+                <div class="topup-grid mb-3" role="group" aria-label="Preset top up amounts">
+                  <% [5,10,20,50,100].forEach(v => { 
+                       const id = `amt_${v}`;
+                  %>
+                    <input class="btn-check" type="radio" name="presetAmount" id="<%= id %>" value="<%= v %>" autocomplete="off">
+                    <label class="topup-chip" for="<%= id %>">$<%= v %></label>
+                  <% }) %>
+                </div>
+
+                <!-- Custom amount -->
+                <div class="custom-box mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0 fw-semibold" for="customAmount">Custom amount</label>
+                    <span class="tx-meta">Min $1, max $1000</span>
+                  </div>
+                  <input
+                    id="customAmount"
+                    class="form-control"
+                    name="customAmount"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.01"
+                    min="1"
+                    max="1000"
+                    placeholder="e.g. 12.50"
+                  >
+                </div>
+
+                <!-- NEW: Payment method radio (with images) -->
+                <div class="mb-3">
+                  <div class="wallet-section-title mb-2">Payment Method</div>
+
+                  <div class="pay-method-grid" role="group" aria-label="Payment method">
+                    <input class="btn-check" type="radio" name="paymentMethod" id="pm_paypal" value="paypal" autocomplete="off">
+                    <label class="pay-tile" for="pm_paypal">
+                      <img class="pay-logo" src="/images/paypal.png" alt="PayPal">
+                      <div>
+                        <div class="pay-name">PayPal</div>
+                        <div class="pay-desc">Pay with PayPal checkout</div>
+                      </div>
+                    </label>
+
+                    <input class="btn-check" type="radio" name="paymentMethod" id="pm_nets" value="nets" autocomplete="off">
+                    <label class="pay-tile" for="pm_nets">
+                      <img class="pay-logo" src="/images/nets.png" alt="NETS">
+                      <div>
+                        <div class="pay-name">NETS QR</div>
+                        <div class="pay-desc">Scan QR to complete</div>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div class="tx-meta mt-2">
+                    Select a method, then click Top Up.
+                  </div>
+                </div>
+
+                <!-- NEW: Single submit button -->
+                <div class="d-grid gap-2">
+                  <button class="btn btn-primary w-100 confirm-btn" type="submit">
+                    Top Up
+                  </button>
+                </div>
+
+                <div class="tx-meta mt-2">
+                  You’ll confirm payment on the next page.
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Transactions -->
+      <div class="col-lg-7">
+        <div class="wallet-card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="wallet-section-title mb-0">Recent Transactions</div>
+              <div class="tx-meta">Last 10</div>
+            </div>
+
+            <div class="table-responsive tx-table">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style="width: 90px;">ID</th>
+                    <th>Details</th>
+                    <th class="text-end" style="width: 120px;">Amount</th>
+                    <th style="width: 140px;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (txs && txs.length) { %>
+                    <% txs.forEach(t => { %>
+                      <tr>
+                        <td class="tx-meta">#<%= t.id %></td>
+
+                        <td>
+                          <div class="tx-type"><%= t.type %></div>
+                          <div class="tx-meta"><%= new Date(t.created_at).toLocaleString() %></div>
+                        </td>
+
+                        <td class="text-end">
+                          <div class="tx-amount">$<%= Number(t.amount).toFixed(2) %></div>
+                        </td>
+
+                        <td>
+                          <% if (t.status === 'COMPLETED') { %>
+                            <span class="badge-soft badge-soft-success">COMPLETED</span>
+                          <% } else if (t.status === 'FAILED') { %>
+                            <span class="badge-soft badge-soft-danger">FAILED</span>
+                          <% } else { %>
+                            <span class="badge-soft badge-soft-warning"><%= t.status %></span>
+                          <% } %>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% } else { %>
+                    <tr>
+                      <td colspan="4" class="text-center text-muted py-4">
+                        No transactions yet
+                      </td>
+                    </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="tx-meta mt-2">
+              Tip: Top ups will appear here after PayPal/NETS payment completes.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Error modal -->
+  <div class="modal fade" id="amountErrorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger">Top Up Error</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="amountErrorModalMsg">
+          Please select a top up amount or enter a custom amount before continuing.
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('partials/footer') %>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // Preset + custom amount behavior + require amount + require payment method + route to correct endpoint
+    (function () {
+      const form = document.getElementById('walletTopupForm');
+      const custom = document.getElementById('customAmount');
+      const amountRadios = document.querySelectorAll('input[name="presetAmount"]');
+      const pmRadios = document.querySelectorAll('input[name="paymentMethod"]');
+
+      const modalEl = document.getElementById('amountErrorModal');
+      const modalMsgEl = document.getElementById('amountErrorModalMsg');
+      const modal = new bootstrap.Modal(modalEl);
+
+      function openModal(msg) {
+        modalMsgEl.textContent = msg;
+        modal.show();
+      }
+
+      // preset chosen => clear custom
+      amountRadios.forEach(r => {
+        r.addEventListener('change', () => {
+          if (r.checked) custom.value = '';
+        });
+      });
+
+      // custom typed => clear preset
+      custom.addEventListener('input', () => {
+        if ((custom.value || '').toString().trim().length > 0) {
+          amountRadios.forEach(r => r.checked = false);
+        }
+      });
+
+      function getSelectedPaymentMethod() {
+        const checked = Array.from(pmRadios).find(r => r.checked);
+        return checked ? checked.value : '';
+      }
+
+      // Submit validation + dynamic routing
+      form.addEventListener('submit', (e) => {
+        // 1) amount must exist
+        const presetChecked = Array.from(amountRadios).some(r => r.checked);
+        const customVal = (custom.value || '').toString().trim();
+
+        if (!presetChecked && customVal.length === 0) {
+          e.preventDefault();
+          openModal('Please select a top up amount or enter a custom amount before continuing.');
+          return;
+        }
+
+        // 2) validate range (server still validates too)
+        const chosen = presetChecked
+          ? Number(Array.from(amountRadios).find(r => r.checked).value)
+          : Number(customVal);
+
+        if (!Number.isFinite(chosen) || chosen < 1 || chosen > 1000) {
+          e.preventDefault();
+          openModal('Top up amount must be between $1 and $1000.');
+          return;
+        }
+
+        // 3) payment method required
+        const method = getSelectedPaymentMethod();
+        if (!method) {
+          e.preventDefault();
+          openModal('Please select PayPal or NETS before clicking Top Up.');
+          return;
+        }
+
+        // 4) route to correct controller endpoint (no controller changes needed)
+        if (method === 'nets') {
+          form.action = '/wallet/topup/nets';
+        } else {
+          form.action = '/wallet/topup';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
