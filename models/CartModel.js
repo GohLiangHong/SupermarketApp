@@ -110,11 +110,33 @@ function clearSelectedItems(userId, productIds, callback) {
   db.query(sql, params, callback);
 }
 
+// Promise-based helper for Stripe controller
+function clearPurchasedItemsForOrder(userId, orderId) {
+  return new Promise((resolve, reject) => {
+    if (!userId || !orderId) return resolve();
+    const sql = `
+      SELECT DISTINCT productID
+      FROM order_items
+      WHERE order_id = ?
+    `;
+    db.query(sql, [orderId], (err, rows) => {
+      if (err) return reject(err);
+      const productIds = rows.map(r => r.productID).filter(id => id !== null && id !== undefined);
+      if (!productIds.length) return resolve();
+      clearSelectedItems(userId, productIds, err2 => {
+        if (err2) return reject(err2);
+        resolve();
+      });
+    });
+  });
+}
+
 module.exports = {
   getCartByUser,
   addOrUpdateItem,
   updateItem,
   removeItem,
   clearCart,
-  clearSelectedItems
+  clearSelectedItems,
+  clearPurchasedItemsForOrder
 };

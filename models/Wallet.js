@@ -84,6 +84,18 @@ function markNetsQrCreated(txId, userId, netsTxnRef, rawJsonObj) {
   });
 }
 
+function markStripeSessionCreated(txId, userId, stripeSessionId, rawJsonObj) {
+  const sql = `
+    UPDATE wallet_transactions
+    SET raw_json = ?
+    WHERE id = ? AND user_id = ?
+  `;
+  const payload = Object.assign({}, rawJsonObj || {}, { stripeSessionId });
+  return new Promise((resolve, reject) => {
+    db.query(sql, [JSON.stringify(payload), txId, userId], (err, r) => (err ? reject(err) : resolve(r)));
+  });
+}
+
 /**
  * Atomically:
  * 1) mark tx completed
@@ -354,6 +366,7 @@ module.exports = {
   getTransactionById,
   markPaypalOrderCreated,
   markNetsQrCreated,
+  markStripeSessionCreated,
   completeTopup,
   completeTopupNets,
   markFailed,

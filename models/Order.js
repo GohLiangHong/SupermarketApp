@@ -19,9 +19,9 @@ function createOrder(userId, totals, callback) {
   const sql = `
     INSERT INTO \`order\`
       (userid, referenceId, orderId, transactionalId, paymentMode, status, currency,
-       subtotal, tax, shipping_fee, discount, total, createOn, capturedOn)
+       subtotal, tax, shipping_fee, discount, total, voucherCode, createOn, capturedOn)
     VALUES
-      (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NULL)
+      (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NULL)
   `;
 
   const params = [
@@ -34,7 +34,8 @@ function createOrder(userId, totals, callback) {
     totals.tax,
     totals.shipping_fee,
     totals.discount,
-    totals.total
+    totals.total,
+    totals.voucherCode || null
   ];
 
   db.query(sql, params, (err, result) => {
@@ -139,6 +140,7 @@ function getOrderWithItems(orderId, callback) {
       shipping_fee: base.shipping_fee,
       discount: base.discount,
       total: base.total,
+      voucherCode: base.voucherCode,
       createOn: base.createOn,
       capturedOn: base.capturedOn,
       customer: {
@@ -183,9 +185,47 @@ function getOrdersByUser(userId, callback) {
     callback(null, rows);
   });
 }
+
+// Promise-based helpers for Stripe controller
+function getOrderForUser(orderId, userId) {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      SELECT id, userid, status, total, voucherCode
+      FROM \`order\`
+      WHERE id = ? AND userid = ?
+      LIMIT 1
+    `;
+    db.query(sql, [orderId, userId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows[0] || null);
+    });
+  });
+}
+
+function markOrderPaid(orderId, payment) {
+  const method = payment && payment.method ? payment.method : 'PAID';
+  const reference = payment && payment.reference ? payment.reference : null;
+  return new Promise((resolve, reject) => {
+    const sql = `
+      UPDATE \`order\`
+      SET status = 'PAID',
+          paymentMode = ?,
+          transactionalId = ?,
+          capturedOn = NOW()
+      WHERE id = ?
+    `;
+    db.query(sql, [method, reference, orderId], (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+  });
+}
+
 module.exports = {
   createOrder,
   addItems,
   getOrderWithItems,
-  getOrdersByUser
+  getOrdersByUser,
+  getOrderForUser,
+  markOrderPaid
 };

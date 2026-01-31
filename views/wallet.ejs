@@ -279,6 +279,15 @@
                       </div>
                     </label>
 
+                    <input class="btn-check" type="radio" name="paymentMethod" id="pm_stripe" value="stripe" autocomplete="off">
+                    <label class="pay-tile" for="pm_stripe">
+                      <img class="pay-logo" src="/images/stripe.png" alt="Stripe">
+                      <div>
+                        <div class="pay-name">Stripe</div>
+                        <div class="pay-desc">Card payment via Stripe</div>
+                      </div>
+                    </label>
+
                     <input class="btn-check" type="radio" name="paymentMethod" id="pm_nets" value="nets" autocomplete="off">
                     <label class="pay-tile" for="pm_nets">
                       <img class="pay-logo" src="/images/nets.png" alt="NETS">
@@ -367,7 +376,7 @@
             </div>
 
             <div class="tx-meta mt-2">
-              Tip: Top ups will appear here after PayPal/NETS payment completes.
+              Tip: Top ups will appear here after PayPal/Stripe/NETS payment completes.
             </div>
           </div>
         </div>
@@ -460,13 +469,15 @@
         const method = getSelectedPaymentMethod();
         if (!method) {
           e.preventDefault();
-          openModal('Please select PayPal or NETS before clicking Top Up.');
+          openModal('Please select PayPal, Stripe, or NETS before clicking Top Up.');
           return;
         }
 
         // 4) route to correct controller endpoint (no controller changes needed)
         if (method === 'nets') {
           form.action = '/wallet/topup/nets';
+        } else if (method === 'stripe') {
+          form.action = '/wallet/topup/stripe';
         } else {
           form.action = '/wallet/topup';
         }

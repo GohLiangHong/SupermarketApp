@@ -2,6 +2,7 @@ const OrderModel = require('../models/Order');
 const CartModel = require('../models/CartModel');
 const Wallet = require('../models/Wallet');
 const db = require('../db');
+const VoucherModel = require('../models/VoucherModel');
 
 // GET /payments/ewallet?orderId=123
 function showEwalletPaymentPage(req, res) {
@@ -23,10 +24,17 @@ function showEwalletPaymentPage(req, res) {
       req.flash('error', 'You are not allowed to view this order.');
       return res.redirect('/shopping');
     }
+    const status = String(order.status || '').toUpperCase();
+    if (status === 'PAID') {
+      return res.redirect(`/orders/${orderId}`);
+    }
 
     await Wallet.ensureWallet(user.id);
     const wallet = await Wallet.getWallet(user.id);
 
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     return res.render('ewallet_payment', {
       user,
       order,
@@ -74,6 +82,13 @@ async function payWithEwallet(req, res) {
     req.flash('error', 'Insufficient balance. Please top up your wallet before paying.');
     return res.redirect('/cart');
   }
+
+  await new Promise((resolve) => {
+    VoucherModel.markUsedForOrder(orderId, (vErr) => {
+      if (vErr) console.error('Failed to mark voucher used for order', orderId, vErr);
+      resolve();
+    });
+  });
 
   // Clear purchased items from cart (same logic as PayPal/NETS)
   const rows = await new Promise((resolve, reject) => {

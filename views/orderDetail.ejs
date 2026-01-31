@@ -114,6 +114,11 @@
     <!-- rest of your receipt content -->
 
   <div class="container mt-3">
+    <%
+      const rawStatus = (order.status || '').toUpperCase();
+      const displayStatus = rawStatus === 'PAID' ? 'COMPLETE' : (rawStatus || 'PENDING');
+      const isPaid = displayStatus === 'COMPLETE';
+    %>
 
     <% if (error && error.length) { %>
       <div class="alert alert-danger no-print"><%= error[0] %></div>
@@ -121,12 +126,19 @@
     <% if (success && success.length) { %>
       <div class="alert alert-success no-print"><%= success[0] %></div>
     <% } %>
+    <% if (!isPaid) { %>
+      <div class="alert alert-warning no-print">
+        Payment is not completed. This page shows your order details, not an invoice.
+      </div>
+    <% } %>
 
     <div class="receipt-wrapper">
       <!-- Print button -->
       <div class="d-flex justify-content-between align-items-center mb-2 no-print">
-        <h4 class="mb-0">Order Receipt</h4>
-        <button class="btn btn-secondary btn-sm" onclick="window.print()">Print</button>
+        <h4 class="mb-0"><%= isPaid ? 'Order Receipt' : 'Order Details (Pending)' %></h4>
+        <% if (isPaid) { %>
+          <button class="btn btn-secondary btn-sm" onclick="window.print()">Print</button>
+        <% } %>
       </div>
 
       <div class="receipt-paper">
@@ -163,7 +175,7 @@
           </div>
           <div class="d-flex justify-content-between">
             <span>Status:</span>
-            <span><%= order.status %></span>
+            <span><%= displayStatus %></span>
           </div>
         </div>
 

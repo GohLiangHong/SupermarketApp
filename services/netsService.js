@@ -1,7 +1,10 @@
 // services/netsService.js
 const axios = require("axios");
 
-// NETSDemo hardcodes the sandbox base URL directly in code
+const http = axios.create({
+  timeout: 10000, // ✅ 10 seconds (adjust if you want)
+});
+
 const NETS_REQUEST_URL =
   "https://sandbox.nets.openapipaas.com/api/v1/common/payments/nets-qr/request";
 const NETS_QUERY_URL =
@@ -18,7 +21,6 @@ function requireNetsEnv() {
   return { apiKey, projectId };
 }
 
-// NETSDemo uses a fixed txn_id for testing
 async function requestQr(amountInDollars) {
   const { apiKey, projectId } = requireNetsEnv();
 
@@ -28,39 +30,48 @@ async function requestQr(amountInDollars) {
     notify_mobile: 0,
   };
 
-  const response = await axios.post(NETS_REQUEST_URL, requestBody, {
-    headers: {
-      "api-key": apiKey,
-      "project-id": projectId,
-      "Content-Type": "application/json",
-    },
-  });
-
-  return response.data;
-}
-
-async function queryTxn(txnRetrievalRef, frontendTimeoutStatus = 0) {
-  const { apiKey, projectId } = requireNetsEnv();
-
-  const response = await axios.post(
-    NETS_QUERY_URL,
-    {
-      txn_retrieval_ref: txnRetrievalRef,
-      frontend_timeout_status: frontendTimeoutStatus,
-    },
-    {
+  try {
+    const response = await http.post(NETS_REQUEST_URL, requestBody, {
       headers: {
         "api-key": apiKey,
         "project-id": projectId,
         "Content-Type": "application/json",
       },
-    }
-  );
-
-  return response.data;
+    });
+    return response.data;
+  } catch (e) {
+    // ✅ make the error readable in your console
+    const detail = e?.response?.data || e?.message || e;
+    console.error("NETS requestQr failed:", detail);
+    throw e;
+  }
 }
 
-module.exports = {
-  requestQr,
-  queryTxn,
-};
+async function queryTxn(txnRetrievalRef, frontendTimeoutStatus = 0) {
+  const { apiKey, projectId } = requireNetsEnv();
+
+  try {
+    const response = await http.post(
+      NETS_QUERY_URL,
+      {
+        txn_retrieval_ref: txnRetrievalRef,
+        frontend_timeout_status: frontendTimeoutStatus,
+      },
+      {
+        headers: {
+          "api-key": apiKey,
+          "project-id": projectId,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (e) {
+    const detail = e?.response?.data || e?.message || e;
+    console.error("NETS queryTxn failed:", detail);
+    throw e;
+  }
+}
+
+module.exports = { requestQr, queryTxn };

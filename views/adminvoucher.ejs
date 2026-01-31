@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vouchers – Supermarket Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/app.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-page">
+  <%- include('partials/admin-modern-navbar', { user: user, active: 'vouchers' }) %>
+
+  <main class="app-main">
+    <div class="container-fluid">
+      <div class="row align-items-center mb-3">
+        <div class="col-md-6">
+          <h2 class="mb-1">Vouchers</h2>
+          <p class="text-muted mb-0">Create and manage discount vouchers.</p>
+        </div>
+      </div>
+
+      <% if (error && error.length) { %>
+        <div class="alert alert-danger"><%= error[0] %></div>
+      <% } %>
+      <% if (success && success.length) { %>
+        <div class="alert alert-success"><%= success[0] %></div>
+      <% } %>
+
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h5 class="mb-3">Create Voucher</h5>
+          <form action="/admin/vouchers" method="POST" class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Voucher Code</label>
+              <input type="text" name="code" class="form-control" placeholder="SAVE10" required>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Discount (%)</label>
+              <input type="number" name="discount_percent" class="form-control" min="1" max="100" step="1" required>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Condition</label>
+              <select name="condition" class="form-select">
+                <option value="none">No minimum spend</option>
+                <option value="min_20">Minimum spend $20</option>
+                <option value="min_50">Minimum spend $50</option>
+                <option value="min_100">Minimum spend $100</option>
+              </select>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Expiry Date</label>
+              <input type="date" name="expires_at" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+              <div class="form-check mt-4">
+                <input class="form-check-input" type="checkbox" name="is_used" id="is_used">
+                <label class="form-check-label" for="is_used">
+                  Mark as used (disable)
+                </label>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary">Create Voucher</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="mb-3">Existing Vouchers</h5>
+          <% if (!vouchers || vouchers.length === 0) { %>
+            <p class="text-muted mb-0">No vouchers created yet.</p>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-modern align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Discount</th>
+                    <th>Min Spend</th>
+                    <th>Expiry</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% vouchers.forEach(function(v){ %>
+                    <tr>
+                      <td><strong><%= v.code %></strong></td>
+                      <td><%= Number(v.discount_percent || 0).toFixed(0) %>%</td>
+                      <td>$<%= Number(v.min_spend || 0).toFixed(2) %></td>
+                      <td>
+                        <%= v.expires_at ? new Date(v.expires_at).toLocaleDateString() : 'No expiry' %>
+                      </td>
+                      <td>
+                        <% if (Number(v.is_used) === 1) { %>
+                          <span class="badge bg-secondary">Used</span>
+                        <% } else if (v.expires_at && new Date(v.expires_at) < new Date()) { %>
+                          <span class="badge bg-warning text-dark">Expired</span>
+                        <% } else { %>
+                          <span class="badge bg-success">Active</span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

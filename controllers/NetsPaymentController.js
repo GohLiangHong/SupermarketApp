@@ -3,6 +3,7 @@ const db = require("../db");
 const OrderModel = require("../models/Order");
 const CartModel = require("../models/CartModel");
 const netsService = require("../services/netsService");
+const VoucherModel = require("../models/VoucherModel");
 
 // GET /payments/nets?orderId=123
 function showNetsPaymentPage(req, res) {
@@ -14,6 +15,7 @@ function showNetsPaymentPage(req, res) {
     req.flash("error", "Invalid order ID.");
     return res.redirect("/shopping");
   }
+  
 
   OrderModel.getOrderWithItems(orderId, async (err, order) => {
     if (err || !order) {
@@ -24,12 +26,24 @@ function showNetsPaymentPage(req, res) {
       req.flash("error", "You are not allowed to pay for this order.");
       return res.redirect("/shopping");
     }
+    const status = String(order.status || "").toUpperCase();
+    if (status === "PAID") {
+      return res.redirect(`/orders/${orderId}`);
+    }
 
     const total = Number(order.total || 0).toFixed(2);
 
     try {
-      const netsResp = await netsService.requestQr(total);
-      const qrData = netsResp?.result?.data;
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
+      console.log("[NETS] start QR request", { orderId: order.id, total });
+
+    const netsResp = await netsService.requestQr(total);
+
+    console.log("[NETS] QR response:", netsResp);
+
+    const qrData = netsResp?.result?.data;
 
       // NETSDemo success condition
       if (
@@ -158,6 +172,12 @@ function netsSuccess(req, res) {
       req.flash("error", "Failed to finalize NETS payment.");
       return res.redirect(`/orders/confirm/${orderId}`);
     }
+
+    VoucherModel.markUsedForOrder(orderId, (vErr) => {
+      if (vErr) {
+        console.error("Failed to mark voucher used for order", orderId, vErr);
+      }
+    });
 
     const sqlItems = `
       SELECT DISTINCT productID

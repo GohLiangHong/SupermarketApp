@@ -123,6 +123,11 @@
                 <img src="/images/nets.png" alt="NETS" class="method-logo"> NETS
               </label>
               <label class="list-group-item d-flex align-items-center">
+                <input class="form-check-input me-2" type="radio" name="paymentMethod" value="STRIPE">
+                <img src="/images/stripe.png" alt="Stripe" class="method-logo"> Stripe
+              </label>
+
+              <label class="list-group-item d-flex align-items-center">
                 <input class="form-check-input me-2" type="radio" name="paymentMethod" value="EWALLET">
                 <img src="/images/ewallet.png" alt="E-Wallet" class="method-logo"> E-Wallet
               </label>
@@ -172,7 +177,10 @@
         if (method === 'PAYPAL') {
           window.location.href = '/payments/paypal?orderId=' + encodeURIComponent(orderId);
         } else if (method === 'NETS') {
-          window.location.href = '/payments/nets?orderId=' + encodeURIComponent(orderId);
+          window.location.href = '/payments/nets?orderId=' + encodeURIComponent(orderId);} 
+          else if (method === 'STRIPE') {
+          window.location.href = '/payments/stripe?orderId=' + encodeURIComponent(orderId);
+
         } else if (method === 'EWALLET') {
           // new: check server-side wallet balance before redirecting
           fetch('/api/wallet/balance', { credentials: 'same-origin' })

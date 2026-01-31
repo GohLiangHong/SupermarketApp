@@ -1,4 +1,5 @@
 //the main web framework.
+require('dotenv').config();  
 const express = require('express');
 //enables user sessions (used for login persistence and cart storage).
 const session = require('express-session');
@@ -34,7 +35,8 @@ const PaymentController = require('./controllers/PaymentController');
 const NetsPaymentController = require('./controllers/NetsPaymentController');
 const WalletController = require('./controllers/WalletController');
 const EwalletPaymentController = require('./controllers/EwalletPaymentController');
-
+const StripePaymentController = require('./controllers/StripePaymentController');
+const VoucherController = require('./controllers/VoucherController');
 
 const app = express();
 
@@ -99,6 +101,7 @@ app.post('/cart/update/:id', checkAuthenticated, CartController.updateItem);
 app.post('/cart/remove/:id', checkAuthenticated, CartController.removeItem);
 app.post('/cart/checkout', checkAuthenticated, CartController.checkout);
 app.post('/cart/clear', checkAuthenticated, CartController.clearCart);
+app.post('/cart/apply-voucher', checkAuthenticated, VoucherController.applyToCart);
 
 // Auth routes (use your AuthController)
 app.get('/login', AuthController.loginForm);
@@ -172,6 +175,10 @@ app.post('/admin/feedback/:id/delete',
   FeedbackController.deleteFeedback
 );
 
+// Admin vouchers
+app.get('/admin/vouchers', checkAuthenticated, checkAdmin, VoucherController.adminList);
+app.post('/admin/vouchers', checkAuthenticated, checkAdmin, VoucherController.adminCreate);
+
 // payments (PayPal)
 app.get('/payments/paypal', checkAuthenticated, PaymentController.showPaymentPage);
 app.post('/api/paypal/create-order', checkAuthenticated, PaymentController.createOrderApi);
@@ -179,6 +186,13 @@ app.post('/api/paypal/capture-order', checkAuthenticated, PaymentController.capt
 // payments (NETS)
 app.get('/payments/nets', checkAuthenticated, NetsPaymentController.showNetsPaymentPage);
 app.get('/sse/nets/payment-status/:txnRetrievalRef', checkAuthenticated, NetsPaymentController.ssePaymentStatus);
+// app.js (add near your NETS routes)
+app.post('/payments/nets', checkAuthenticated, (req, res) => {
+  const orderId = req.body.orderId || req.body.order_id;
+  if (!orderId) return res.redirect('/cart');
+  return res.redirect(`/payments/nets?orderId=${encodeURIComponent(orderId)}`);
+});
+
 
 // ✅ NETSDemo alias:
 app.get('/sse/payment-status/:txnRetrievalRef', checkAuthenticated, NetsPaymentController.ssePaymentStatus);
@@ -193,6 +207,12 @@ app.post('/wallet/topup', checkAuthenticated, WalletController.topupStart);
 app.post('/api/paypal/wallet/create-order', checkAuthenticated, WalletController.createWalletPaypalOrder);
 app.post('/api/paypal/wallet/capture-order', checkAuthenticated, WalletController.captureWalletPaypalOrder);
 
+// Stripe for Wallet
+app.post('/wallet/topup/stripe', checkAuthenticated, WalletController.topupStartStripe);
+app.post('/api/stripe/wallet/create-checkout-session', checkAuthenticated, WalletController.createWalletStripeCheckoutSession);
+app.get('/wallet/stripe/success', checkAuthenticated, WalletController.walletStripeSuccess);
+app.get('/wallet/stripe/cancel', checkAuthenticated, WalletController.walletStripeCancel);
+
 app.get('/wallet', checkAuthenticated, WalletController.walletHome);
 app.post('/wallet/topup', checkAuthenticated, WalletController.topupStart);
 
@@ -204,6 +224,13 @@ app.get('/wallet/nets/fail', checkAuthenticated, WalletController.netsWalletFail
 // payments (E-WALLET)
 app.get('/payments/ewallet', checkAuthenticated, EwalletPaymentController.showEwalletPaymentPage);
 app.post('/payments/ewallet/pay', checkAuthenticated, EwalletPaymentController.payWithEwallet);
+
+
+// Stripe
+app.get('/payments/stripe', checkAuthenticated, StripePaymentController.showStripePage);
+app.post('/api/stripe/create-checkout-session', checkAuthenticated, StripePaymentController.createCheckoutSession);
+app.get('/payments/stripe/success', checkAuthenticated, StripePaymentController.stripeSuccess);
+app.get('/payments/stripe/cancel', checkAuthenticated, StripePaymentController.stripeCancel);
 
 // API for client-side wallet balance checks
 app.get('/api/wallet/balance', WalletController.getBalance);

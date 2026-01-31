@@ -2,6 +2,7 @@
 const Wallet = require('../models/Wallet');
 const paypalService = require('../services/paypal');
 const netsService = require('../services/netsService');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 
 function normalizeMoney(val) {
@@ -128,6 +129,40 @@ async function topupStartNets(req, res) {
 }
 
 /**
+ * Stripe: start wallet topup and render walletTopupStripe.ejs
+ */
+async function topupStartStripe(req, res) {
+  const user = req.session.user;
+
+  const chosen = (req.body.customAmount && String(req.body.customAmount).trim() !== '')
+    ? req.body.customAmount
+    : req.body.presetAmount;
+
+  const amount = normalizeMoney(chosen);
+  if (!amount) {
+    req.flash('error', 'Please select a valid top up amount.');
+    return res.redirect('/wallet');
+  }
+
+  const n = Number(amount);
+  if (n < 1 || n > 1000) {
+    req.flash('error', 'Top up amount must be between $1 and $1000.');
+    return res.redirect('/wallet');
+  }
+
+  await Wallet.ensureWallet(user.id);
+  const txId = await Wallet.createTopupTransaction(user.id, amount);
+
+  return res.render('walletTopupStripe', {
+    user,
+    amount,
+    txId,
+    success: req.flash('success'),
+    error: req.flash('error')
+  });
+}
+
+/**
  * Create PayPal order for wallet topup (server = source of truth)
  */
 async function createWalletPaypalOrder(req, res) {
@@ -211,6 +246,103 @@ async function captureWalletPaypalOrder(req, res) {
 }
 
 /**
+ * Stripe: create checkout session for wallet topup
+ */
+async function createWalletStripeCheckoutSession(req, res) {
+  try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ error: 'Stripe secret key is missing in .env' });
+    }
+
+    const user = req.session.user;
+    const txId = parseInt(req.body.txId, 10);
+    if (!txId) return res.status(400).json({ error: 'Missing txId' });
+
+    const tx = await Wallet.getTransactionById(txId);
+    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+    if (tx.user_id !== user.id) return res.status(403).json({ error: 'Not allowed' });
+    if (tx.status === 'COMPLETED') return res.status(400).json({ error: 'Transaction already completed' });
+
+    const amount = Number(tx.amount || 0);
+    if (!(amount > 0)) return res.status(400).json({ error: 'Invalid amount' });
+
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const amountInCents = Math.round(amount * 100);
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'sgd',
+            product_data: {
+              name: 'E-Wallet Top Up'
+            },
+            unit_amount: amountInCents
+          },
+          quantity: 1
+        }
+      ],
+      success_url: `${baseUrl}/wallet/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/wallet/stripe/cancel?txId=${encodeURIComponent(txId)}`,
+      metadata: {
+        txId: String(txId),
+        userId: String(user.id)
+      }
+    });
+
+    await Wallet.markStripeSessionCreated(txId, user.id, session.id, { sessionId: session.id });
+    return res.json({ url: session.url });
+  } catch (err) {
+    console.error('createWalletStripeCheckoutSession error', err);
+    return res.status(500).json({ error: err?.message || 'Failed to create Stripe session' });
+  }
+}
+
+/**
+ * Stripe: success redirect for wallet topup
+ */
+async function walletStripeSuccess(req, res) {
+  try {
+    const user = req.session.user;
+    const { session_id } = req.query;
+
+    if (!user) return res.redirect('/login');
+    if (!session_id) {
+      req.flash('error', 'Missing Stripe session.');
+      return res.redirect('/wallet');
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (session.payment_status !== 'paid') {
+      req.flash('error', 'Stripe payment not completed.');
+      return res.redirect('/wallet');
+    }
+
+    const txId = parseInt(session.metadata?.txId, 10);
+    const metaUserId = String(session.metadata?.userId || '');
+    if (!txId || metaUserId !== String(user.id)) {
+      req.flash('error', 'Invalid Stripe session metadata.');
+      return res.redirect('/wallet');
+    }
+
+    await Wallet.completeTopup(txId, user.id, session.payment_intent || session.id, session);
+    req.flash('success', 'Top up successful!');
+    return res.redirect('/wallet');
+  } catch (err) {
+    console.error('walletStripeSuccess error', err);
+    req.flash('error', 'Stripe top up failed.');
+    return res.redirect('/wallet');
+  }
+}
+
+async function walletStripeCancel(req, res) {
+  req.flash('error', 'Stripe top up cancelled.');
+  return res.redirect('/wallet');
+}
+
+/**
  * NETS wallet success/fail callbacks used by walletTopupNets.ejs
  */
 async function netsWalletSuccess(req, res) {
@@ -279,8 +411,12 @@ module.exports = {
   walletHome,
   topupStart,
   topupStartNets,
+  topupStartStripe,
   createWalletPaypalOrder,
   captureWalletPaypalOrder,
+  createWalletStripeCheckoutSession,
+  walletStripeSuccess,
+  walletStripeCancel,
   netsWalletSuccess,
   netsWalletFail,
   getBalance

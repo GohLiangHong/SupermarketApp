@@ -2,6 +2,7 @@ const OrderModel = require('../models/Order');
 const CartModel = require('../models/CartModel');
 const paypalService = require('../services/paypal');
 const db = require('../db');
+const VoucherModel = require('../models/VoucherModel');
 
 async function showPaymentPage(req, res) {
   const user = req.session.user;
@@ -25,8 +26,15 @@ async function showPaymentPage(req, res) {
       req.flash('error', 'You are not allowed to view this order.');
       return res.redirect('/shopping');
     }
+    const status = String(order.status || '').toUpperCase();
+    if (status === 'PAID') {
+      return res.redirect(`/orders/${orderId}`);
+    }
 
     // render payment page
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.render('payment', {
       order,
       user: req.session.user,
@@ -130,6 +138,13 @@ async function captureOrderApi(req, res) {
       db.query(sql, [orderID, transactionalId, orderId, user.id], (err, result) => {
         if (err) return reject(err);
         resolve(result);
+      });
+    });
+
+    await new Promise((resolve) => {
+      VoucherModel.markUsedForOrder(orderId, (err) => {
+        if (err) console.error('Failed to mark voucher used for order', orderId, err);
+        resolve();
       });
     });
 

@@ -4,6 +4,47 @@ const ProductModel = require('../models/ProductModel');
 const CartModel = require('../models/CartModel');
 const OrderModel = require('../models/Order');   // order header + items
 const db = require('../db');                     // direct SQL for stock updates
+const VoucherModel = require('../models/VoucherModel');
+
+function isVoucherExpired(expiresAt) {
+  if (!expiresAt) return false;
+  const exp = new Date(expiresAt);
+  if (Number.isNaN(exp.getTime())) return false;
+  return exp.getTime() < Date.now();
+}
+
+function validateVoucherForAmount(voucher, amount) {
+  if (!voucher) {
+    return { ok: false, message: 'Invalid voucher code.' };
+  }
+  if (Number(voucher.is_used) === 1) {
+    return { ok: false, message: 'This voucher has already been used.' };
+  }
+  if (isVoucherExpired(voucher.expires_at)) {
+    return { ok: false, message: 'This voucher has expired.' };
+  }
+  const discountPercent = Number(voucher.discount_percent || 0);
+  if (!(discountPercent > 0)) {
+    return { ok: false, message: 'This voucher has no discount configured.' };
+  }
+  const minSpend = Number(voucher.min_spend || 0);
+  if (amount < minSpend) {
+    return {
+      ok: false,
+      message: `Minimum spend of $${minSpend.toFixed(2)} is required to use this voucher.`
+    };
+  }
+
+  return { ok: true, discountPercent, minSpend };
+}
+
+function parseSelectedIds(raw) {
+  if (!raw) return [];
+  return String(raw)
+    .split(',')
+    .map(s => parseInt(String(s).trim(), 10))
+    .filter(n => !Number.isNaN(n));
+}
 
 // POST /add-to-cart/:id
 function addToCart(req, res) {
@@ -215,11 +256,7 @@ function checkout(req, res) {
   }
   const userId = user.id;
 
-  const selectedRaw = req.body.selectedProductIds || '';
-  const selectedIds = selectedRaw
-    .split(',')
-    .map(s => parseInt(s.trim(), 10))
-    .filter(n => !Number.isNaN(n));
+  const selectedIds = parseSelectedIds(req.body.selectedProductIds || '');
 
   if (!selectedIds.length) {
     req.flash('error', 'Please select at least one item to checkout.');
@@ -278,11 +315,16 @@ function checkout(req, res) {
       tax: 0,
       shipping_fee: 0,
       discount: 0,
-      total: subtotal
+      total: subtotal,
+      voucherCode: null
     };
 
-    // 5) Create order header
-    OrderModel.createOrder(userId, totals, (err2, orderData) => {
+    const voucherCodeRaw = req.body.voucherCode || req.body.voucher_code || '';
+    const voucherCode = VoucherModel.normalizeCode(voucherCodeRaw);
+
+    function proceedToCreateOrder(finalTotals) {
+      // 5) Create order header
+      OrderModel.createOrder(userId, finalTotals, (err2, orderData) => {
       if (err2) {
         console.error(err2);
         req.flash('error', 'Failed to create order.');
@@ -332,6 +374,37 @@ function checkout(req, res) {
         updateNext(0);
 
       });
+    });
+    }
+
+    if (!voucherCode) {
+      return proceedToCreateOrder(totals);
+    }
+
+    VoucherModel.getByCode(voucherCode, (vErr, voucher) => {
+      if (vErr) {
+        console.error(vErr);
+        req.flash('error', 'Failed to apply voucher. Please try again.');
+        return res.redirect('/cart');
+      }
+
+      const validation = validateVoucherForAmount(voucher, subtotal);
+      if (!validation.ok) {
+        req.flash('error', validation.message);
+        return res.redirect('/cart');
+      }
+
+      const discountValue = Number((subtotal * (validation.discountPercent / 100)).toFixed(2));
+      const finalTotal = Number((subtotal - discountValue).toFixed(2));
+
+      const finalTotals = {
+        ...totals,
+        discount: discountValue,
+        total: finalTotal,
+        voucherCode
+      };
+
+      return proceedToCreateOrder(finalTotals);
     });
   });
 }

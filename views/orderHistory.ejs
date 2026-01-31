@@ -43,7 +43,7 @@
           <select id="orderStatusFilter" class="form-select">
             <option value="">All status</option>
             <option value="PENDING">PENDING</option>
-            <option value="PAID">PAID</option>
+            <option value="COMPLETE">COMPLETE</option>
             <option value="CANCELLED">CANCELLED</option>
           </select>
         </div>
@@ -71,13 +71,22 @@
         </thead>
         <tbody id="orderTableBody">
           <% orders.forEach(function(order) { %>
+            <%
+              const rawStatus = (order.status || '').toUpperCase();
+              const displayStatus = rawStatus === 'PAID' ? 'COMPLETE' : (rawStatus || 'PENDING');
+              const badgeClass = displayStatus === 'COMPLETE'
+                ? 'bg-success'
+                : (displayStatus === 'PENDING' ? 'bg-warning text-dark' : 'bg-secondary');
+              const displayPayment = displayStatus === 'PENDING' ? 'ON HOLD' : (order.paymentMode || 'CASH');
+            %>
             <tr class="order-row"
                 data-id="<%= order.id %>"
                 data-ref="<%= (order.referenceId || '').toLowerCase() %>"
-                data-status="PENDING"
+                data-status="<%= displayStatus %>"
                 data-total="<%= order.total %>">
               <td>
-                <a href="/orders/<%= order.id %>"><%= order.referenceId %></a>
+                <% const viewHref = displayStatus === 'PENDING' ? `/orders/confirm/${order.id}` : `/orders/${order.id}`; %>
+                <a href="<%= viewHref %>"><%= order.referenceId %></a>
               </td>
 
               <td>
@@ -87,14 +96,14 @@
               </td>
 
               <td>
-                <span class="badge bg-secondary">PENDING</span>
+                <span class="badge <%= badgeClass %>"><%= displayStatus %></span>
               </td>
 
-              <td><%= order.paymentMode %></td>
+              <td><%= displayPayment %></td>
               <td>$<%= Number(order.total).toFixed(2) %></td>
 
               <td>
-                <a href="/orders/<%= order.id %>" class="btn btn-sm btn-primary">View</a>
+                <a href="<%= viewHref %>" class="btn btn-sm btn-primary">View</a>
               </td>
             </tr>
           <% }); %>

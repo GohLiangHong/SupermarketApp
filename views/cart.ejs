@@ -117,16 +117,44 @@
           </div>
 
           <div class="card-body border-top">
+            <div class="row g-3 align-items-end mb-3">
+              <div class="col-md-4">
+                <label for="voucher-code" class="form-label small text-muted mb-1">Voucher Code</label>
+                <input id="voucher-code" type="text" class="form-control" placeholder="Enter voucher code">
+              </div>
+              <div class="col-md-2">
+                <button id="apply-voucher" type="button" class="btn btn-outline-primary w-100">
+                  Apply
+                </button>
+              </div>
+              <div class="col-12">
+                <div id="voucher-message" class="small"></div>
+              </div>
+            </div>
+
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-              <h4 class="mb-0">
-                Total: $<span id="selected-total"><%= total.toFixed(2) %></span>
-              </h4>
+              <div class="w-auto">
+                <div class="d-flex justify-content-between">
+                  <div class="text-muted me-3">Subtotal</div>
+                  <div>$<span id="selected-total"><%= total.toFixed(2) %></span></div>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <div class="text-muted me-3">Discount</div>
+                  <div>-$<span id="voucher-discount">0.00</span></div>
+                </div>
+                <div class="d-flex justify-content-between fw-bold">
+                  <div class="me-3">Final Total</div>
+                  <div>$<span id="final-total"><%= total.toFixed(2) %></span></div>
+                </div>
+              </div>
+
               <div class="d-flex gap-2">
                 <a href="/shopping" class="btn btn-outline-secondary">Continue Shopping</a>
 
                 <!-- Checkout selected -->
                 <form id="checkout-form" action="/cart/checkout" method="POST">
                   <input type="hidden" name="selectedProductIds" id="selectedProductIds">
+                  <input type="hidden" name="voucherCode" id="voucherCodeInput">
                   <button type="submit" class="btn btn-success">
                     Checkout Selected
                   </button>
@@ -152,8 +180,31 @@
     document.addEventListener('DOMContentLoaded', function () {
       const checkboxes   = document.querySelectorAll('.item-select');
       const totalSpan    = document.getElementById('selected-total');
+      const discountSpan = document.getElementById('voucher-discount');
+      const finalSpan    = document.getElementById('final-total');
       const checkoutForm = document.getElementById('checkout-form');
       const selectedInput = document.getElementById('selectedProductIds');
+      const voucherCodeInput = document.getElementById('voucherCodeInput');
+      const voucherInput = document.getElementById('voucher-code');
+      const voucherButton = document.getElementById('apply-voucher');
+      const voucherMessage = document.getElementById('voucher-message');
+      let appliedVoucher = null;
+
+      function showVoucherMessage(text, type) {
+        if (!voucherMessage) return;
+        voucherMessage.className = type === 'success'
+          ? 'small text-success'
+          : 'small text-danger';
+        voucherMessage.textContent = text || '';
+      }
+
+      function resetVoucher(message) {
+        appliedVoucher = null;
+        if (voucherCodeInput) voucherCodeInput.value = '';
+        if (discountSpan) discountSpan.textContent = '0.00';
+        if (finalSpan && totalSpan) finalSpan.textContent = totalSpan.textContent;
+        if (message) showVoucherMessage(message, 'error');
+      }
 
       function recalcTotal() {
         let sum = 0;
@@ -165,6 +216,12 @@
         });
         if (totalSpan) {
           totalSpan.textContent = sum.toFixed(2);
+        }
+        if (finalSpan && (!appliedVoucher)) {
+          finalSpan.textContent = sum.toFixed(2);
+        }
+        if (appliedVoucher) {
+          resetVoucher('Cart selection changed. Please reapply your voucher.');
         }
       }
 
@@ -196,6 +253,61 @@
           }
 
           selectedInput.value = selectedIds.join(',');
+        });
+      }
+
+      if (voucherButton) {
+        voucherButton.addEventListener('click', function () {
+          const code = voucherInput ? voucherInput.value.trim() : '';
+          if (!code) {
+            showVoucherMessage('Please enter a voucher code.', 'error');
+            return;
+          }
+
+          const selectedIds = [];
+          const rows = document.querySelectorAll('tbody tr');
+          rows.forEach(row => {
+            const cb = row.querySelector('.item-select');
+            if (cb && cb.checked) {
+              const productId = cb.dataset.productId;
+              if (productId) selectedIds.push(productId);
+            }
+          });
+
+          if (!selectedIds.length) {
+            showVoucherMessage('Please select at least one item before applying a voucher.', 'error');
+            return;
+          }
+
+          fetch('/cart/apply-voucher', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code,
+              selectedProductIds: selectedIds.join(',')
+            })
+          })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+              if (!ok || !data.success) {
+                resetVoucher(data.message || 'Invalid or expired voucher.');
+                return;
+              }
+
+              appliedVoucher = {
+                code: data.code,
+                discountValue: data.discountValue,
+                finalTotal: data.finalTotal
+              };
+
+              if (discountSpan) discountSpan.textContent = Number(data.discountValue || 0).toFixed(2);
+              if (finalSpan) finalSpan.textContent = Number(data.finalTotal || 0).toFixed(2);
+              if (voucherCodeInput) voucherCodeInput.value = data.code || code;
+              showVoucherMessage(`Voucher applied: ${data.discountPercent}% off`, 'success');
+            })
+            .catch(() => {
+              resetVoucher('Failed to apply voucher. Please try again.');
+            });
         });
       }
 

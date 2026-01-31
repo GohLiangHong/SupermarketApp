@@ -3,6 +3,7 @@
 const OrderModel = require('../models/Order');
 const CartModel = require('../models/CartModel');   // ⬅ add this
 const db = require('../db');
+const VoucherModel = require('../models/VoucherModel');
 
 // =============================
 // VIEW FINAL ORDER RECEIPT
@@ -35,6 +36,11 @@ function viewOrder(req, res) {
     if (order.userid !== user.id && user.role !== 'admin') {
       req.flash('error', 'You are not allowed to view this order.');
       return res.redirect('/shopping');
+    }
+
+    const status = String(order.status || '').toUpperCase();
+    if (status === 'PENDING') {
+      return res.redirect(`/orders/confirm/${orderId}`);
     }
 
     res.render('orderDetail', {
@@ -117,6 +123,12 @@ function confirmOrder(req, res) {
       req.flash('error', 'Order not found or not authorized.');
       return res.redirect('/shopping');
     }
+
+    VoucherModel.markUsedForOrder(orderId, (vErr) => {
+      if (vErr) {
+        console.error('Failed to mark voucher used for order', orderId, vErr);
+      }
+    });
 
     // 🔎 Get product IDs from this order so we clear only those from the cart
     const sqlItems = `
